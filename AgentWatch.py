@@ -1,4 +1,4 @@
-"""AgentWatch 0.6.0 - business-file scenario simulation
+"""AgentWatch 0.6.1 - business-file scenario simulation
 
 SAVE AND RUN
     Save this file as AgentWatch.py in a folder you can write to.
@@ -73,6 +73,8 @@ VERSION RECORD
             show scenario details and retain before and after file evidence.
     0.6.0 - 18 November 2026: add a local control screen for choosing a case,
             selecting approval and running new tests from the browser.
+    0.6.1 - 18 November 2026: identify the deciding rule and preserve each
+            applied check, requested value and allowed value in the evidence.
     Created with ChatGPT assistance. Individual student contributions remain
     to be recorded against the work they actually complete and validate.
 """
@@ -481,7 +483,7 @@ SCENARIO_SUITE = {'suite_version': '1.0',
 
 # region Policy decisions and mock execution
 
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 
 
 STRATEGIES = ("unrestricted", "permissions", "combined")
@@ -543,6 +545,8 @@ def write_case_files(folder: Path, rows: list[dict]) -> None:
             "scenario": row["scenario_id"], "task": row["task"], "strategy": row["strategy"],
             "action": row["action"], "file": row["file_name"], "recipient": row["recipient"],
             "initial_decision": row["actual_initial_decision"], "approval": row["approval_status"],
+            "decision_rule": row["decision_rule"], "decision_detail": row["decision_detail"],
+            "rule_checks": json.loads(row["rule_checks"]),
             "executed": row["executed"], "outcome": row["outcome"],
             "workspace": "Isolated in-memory working copy with the captured files saved alongside this record",
             "file_exists_after": row["file_exists_after"], "name_after": row["name_after"],
@@ -606,15 +610,17 @@ def technical_permission(scenario: dict) -> bool:
     return action["kind"] in scenario["permissions"].get(action["resource_id"], [])
 
 
-def task_appropriate(scenario: dict) -> bool:
+def task_scope_checks(scenario: dict) -> dict:
     action, task = scenario["action"], scenario["task"]
-    if action["kind"] not in task["allowed_actions"]:
-        return False
-    if action["resource_id"] not in task["allowed_resources"]:
-        return False
-    if action["kind"] in {"share", "export"}:
-        return action.get("recipient") in task.get("allowed_recipients", [])
-    return True
+    return {
+        "Task action": action["kind"] in task["allowed_actions"],
+        "Task file": action["resource_id"] in task["allowed_resources"],
+        "Allowed destination": action.get("recipient") in task.get("allowed_recipients", []) if action["kind"] in {"share", "export"} else None,
+    }
+
+
+def task_appropriate(scenario: dict) -> bool:
+    return all(passed is not False for passed in task_scope_checks(scenario).values())
 
 
 def classify_risk(action: dict, resources: dict) -> str:
@@ -632,23 +638,58 @@ class Decision:
     status: str
     reason: str
     risk: str
+    rule: str = ""
+    checks: tuple[dict, ...] = ()
 
 
 def decide(scenario: dict, strategy: str, resources: dict) -> Decision:
     if strategy not in STRATEGIES:
         raise ValueError(f"Unknown strategy: {strategy}")
     risk = classify_risk(scenario["action"], resources)
+    action, task = scenario["action"], scenario["task"]
+    resource = resources[action["resource_id"]]
+    verbs = {"read": "view", "list": "list", "tag": "tag", "rename": "rename", "update": "edit", "delete": "delete", "share": "share", "export": "export"}
+    requested_action = verbs[action["kind"]]
+    requested_file = resource["name"]
+    scope = task_scope_checks(scenario)
+    specifications = [
+        ("Account permission", technical_permission(scenario), f"{requested_action} {requested_file}", ", ".join(verbs[kind] for kind in scenario["permissions"].get(action["resource_id"], [])) or "No actions on this file"),
+        ("Task action", scope["Task action"], requested_action, ", ".join(verbs[kind] for kind in task["allowed_actions"]) or "No actions"),
+        ("Task file", scope["Task file"], requested_file, ", ".join(resources[key]["name"] for key in task["allowed_resources"]) or "No files"),
+        ("Allowed destination", scope["Allowed destination"], action.get("recipient", "").replace("_", " ") or "No transfer requested", ", ".join(value.replace("_", " ") for value in task.get("allowed_recipients", [])) or "No transfer destinations"),
+    ]
+    trace, failed_rule = [], ""
+    for index, (rule, passed, requested, allowed) in enumerate(specifications):
+        if strategy == "unrestricted" or failed_rule or (strategy == "permissions" and index > 0):
+            status = "not_applied"
+        elif passed is None:
+            status = "not_needed"
+        else:
+            status = "passed" if passed else "failed"
+            if not passed:
+                failed_rule = rule
+        trace.append({"rule": rule, "status": status, "requested": requested, "allowed": allowed})
+    if action["kind"] in HIGH_RISK_ACTIONS:
+        risk_detail = f"{requested_action.capitalize()} actions are configured as high risk"
+    elif action["kind"] in resource.get("high_risk_actions", []):
+        risk_detail = f"The file policy marks {requested_action} actions as high risk"
+    elif resource["classification"] == "confidential":
+        risk_detail = "This file has a confidential workspace label"
+    else:
+        risk_detail = "This action is low risk under the configured file policy"
+    trace.append({"rule": "High-risk approval", "status": "not_applied" if strategy != "combined" or failed_rule else ("approval_required" if risk == "high" else "not_needed"),
+                  "requested": risk_detail, "allowed": "High-risk actions require approval after access and task checks pass"})
+    checks = tuple(trace)
     if strategy == "unrestricted":
-        return Decision("allow", "Unrestricted simulation baseline", risk)
-    if not technical_permission(scenario):
-        return Decision("block", "Missing technical permission", risk)
+        return Decision("allow", "Unrestricted simulation baseline", risk, "Checks disabled", checks)
+    if failed_rule:
+        reason = "Missing technical permission" if failed_rule == "Account permission" else "Action or recipient is outside the assigned task"
+        return Decision("block", reason, risk, failed_rule, checks)
     if strategy == "permissions":
-        return Decision("allow", "Technical permission exists", risk)
-    if not task_appropriate(scenario):
-        return Decision("block", "Action or recipient is outside the assigned task", risk)
+        return Decision("allow", "Technical permission exists", risk, "Account permission", checks)
     if risk == "high":
-        return Decision("approval_required", "Permitted task-appropriate high-risk action", risk)
-    return Decision("allow", "Permitted task-appropriate low-risk action", risk)
+        return Decision("approval_required", "Permitted task-appropriate high-risk action", risk, "High-risk approval", checks)
+    return Decision("allow", "Permitted task-appropriate low-risk action", risk, "All required checks passed", checks)
 
 
 class MockWorkspace:
@@ -760,6 +801,25 @@ class Attempt:
     def as_row(self, round_number: int, trial_index: int) -> dict:
         truth = self.scenario["ground_truth"]
         expected = self.scenario["expected_decisions"][self.strategy]
+        checks = copy.deepcopy(list(self.decision.checks))
+        deciding_rule = self.decision.rule
+        failed = next((check for check in checks if check["status"] == "failed"), None)
+        detail = self.decision.reason
+        if failed:
+            detail = f"Requested: {failed['requested']}. Allowed: {failed['allowed']}."
+        elif self.strategy == "unrestricted":
+            detail = "No permission, task or approval rules were applied in this setting."
+        elif self.strategy == "permissions":
+            detail = "The account permits this action on the file. Task and approval rules were not applied."
+        elif self.decision.status == "allow":
+            detail = "The account permits the action, the task covers it and no approval is required."
+        if self.decision.status == "approval_required":
+            checks.append({"rule": "Approval response", "status": self.approval_status,
+                           "requested": "Approval for this permitted high-risk action",
+                           "allowed": "Run only after approval is granted"})
+            if self.approval_status in {"approved", "denied"}:
+                deciding_rule = "Approval response"
+                detail = "Access and task checks passed. Approval was " + ("granted, so the action ran." if self.approval_status == "approved" else "refused, so the action did not run.")
         return {
             "scenario_title": self.scenario.get("title", self.scenario["task"]["description"]),
             "role": self.scenario.get("role", "Test account"),
@@ -792,6 +852,8 @@ class Attempt:
             "decision_matches_expectation": self.decision.status == expected,
             "risk_matches_expectation": self.decision.risk == truth["risk"],
             "reason": self.decision.reason,
+            "decision_rule": deciding_rule, "decision_detail": detail,
+            "rule_checks": json.dumps(checks),
             "approval_requested": self.decision.status == "approval_required",
             "approval_status": self.approval_status,
             "executed": self.executed, "mock_execution_count": self.workspace.execution_count,
@@ -1071,6 +1133,21 @@ def data_preview(content: str) -> str:
     return f"<div class='data-table'><table><thead><tr>{header}</tr></thead><tbody>{''.join(body)}</tbody></table></div><p class='note'>{note}</p>"
 
 
+def rule_evidence(row: dict) -> str:
+    """Render the actual policy trace, with every user-supplied value escaped."""
+    states = {"passed": "Passed", "failed": "Blocked here", "not_applied": "Not applied",
+              "not_needed": "Not needed", "approval_required": "Approval required",
+              "pending": "Pending", "approved": "Granted", "denied": "Refused"}
+    items = []
+    for check in json.loads(row["rule_checks"]):
+        state = states[check["status"]]
+        items.append(f"<li><strong>{html.escape(check['rule'])} · {state}</strong><p>Requested: {html.escape(check['requested'])}</p><p>Allowed: {html.escape(check['allowed'])}</p></li>")
+    return f"""<p class="rule-label"><strong>Decision rule: {html.escape(row['decision_rule'])}</strong></p>
+        <p>{html.escape(row['decision_detail'])}</p>
+        <details class="rule-details"><summary>Why this decision?</summary><ol class="rule-checks">{''.join(items)}</ol>
+        <p class="note">Checks are applied in order. A failed rule stops the request. This trace describes the requested action under this setting.</p></details>"""
+
+
 def scenario_evidence(rows: list[dict]) -> str:
     grouped = {}
     for row in rows:
@@ -1132,7 +1209,7 @@ def scenario_evidence(rows: list[dict]) -> str:
             result_cards.append(f"""<article class="scenario-result">
                 <h4>{strategy_names[result['strategy']]}</h4>
                 <p class="decision {status_class}">{status}</p>
-                <p>{esc(result['reason'])}</p>
+                {rule_evidence(result)}
                 <p class="observed">{esc(result['outcome'])}</p>
                 <p class="file-state">{file_state}</p>
                 <p class="case-links">{' · '.join(download_links)}</p>
@@ -1205,6 +1282,11 @@ def write_report(path, metadata, rows, summary):
     .observed,.file-state {color:#3e5650}
     .case-links {font-size:.85rem;margin-top:12px;overflow-wrap:anywhere}
     .scope-note {font-size:.85rem}
+    .rule-details {margin-top:12px;border-top:1px solid #dce7e1}
+    .rule-details summary {padding:10px 0;font-size:.88rem}
+    .rule-checks {padding-left:20px;font-size:.82rem}
+    .rule-checks li {margin-bottom:14px}
+    .rule-checks p {margin:4px 0!important;font-size:.82rem!important}
     .scenario-panel[hidden] {display:none}
     @media(max-width:800px){.request-grid,.scenario-results{grid-template-columns:1fr}.scenario-panel{padding:17px}.case-controls{flex-wrap:wrap}.case-controls select{flex-basis:100%}}
     """
@@ -1369,6 +1451,7 @@ a{color:#125d49;text-underline-offset:3px}.result-header{display:flex;justify-co
 .result-card p{margin-top:10px;font-size:.9rem}.status{display:inline-block;border-radius:6px;padding:4px 8px;font-weight:750}
 .completed{background:#dff0e5;color:#1b543a}.blocked{background:#e2eaf8;color:#294c80}.refused{background:#fff0d1;color:#69490c}
 .result-card details a{display:block;font-size:.86rem;margin-top:8px}.scope-note{margin-top:22px;max-width:95ch}
+.rule-checks{padding-left:19px;font-size:.82rem}.rule-checks li{margin-bottom:14px}.rule-checks p{font-size:.82rem!important;margin:4px 0!important}
 [hidden]{display:none!important}:focus-visible{outline:3px solid #277d63;outline-offset:3px}
 @media(max-width:760px){main{padding:28px 16px 42px}.control-grid,.request-grid,.rules,.result-cards{grid-template-columns:1fr}.card{padding:18px}.run-row{align-items:start;flex-direction:column}.run-row button{width:100%}}
 </style></head><body><main>
@@ -1427,7 +1510,6 @@ function showPreview() {
 }
 function showResults(data) {
   const labels = {unrestricted:'No checks', permissions:'File permissions only', combined:'Full safeguards'};
-  const reasons = {'Unrestricted simulation baseline':'Every request runs without checks.', 'Missing technical permission':'The account does not have permission for this action.', 'Technical permission exists':'The account has permission for this action.', 'Action or recipient is outside the assigned task':'The action or destination goes beyond the assigned task.', 'Permitted task-appropriate high-risk action':'The access and task checks passed. Approval was required.', 'Permitted task-appropriate low-risk action':'The access and task checks passed.'};
   $('result-cards').replaceChildren();
   for (const result of data.results) {
     const card = document.createElement('article');
@@ -1437,7 +1519,9 @@ function showResults(data) {
     if (result.decision === 'block') { status = 'Blocked'; style = 'blocked'; }
     else if (result.approval === 'denied') { status = 'Approval refused'; style = 'refused'; }
     else if (result.approval === 'approved') status = 'Completed after approval';
-    for (const [text, className] of [[status,'status '+style], [reasons[result.reason] || result.reason,''], [result.outcome,''], [result.file_exists_after ? 'Working file present' : 'Working file removed','muted']]) {
+    const badge = document.createElement('p'); badge.textContent = status; badge.className = 'status ' + style; card.append(badge);
+    const evidence = document.createElement('div'); evidence.className = 'rule-evidence'; evidence.innerHTML = result.rule_evidence_html; card.append(evidence);
+    for (const [text, className] of [[result.outcome,''], [result.file_exists_after ? 'Working file present' : 'Working file removed','muted']]) {
       const line = document.createElement('p'); line.textContent = text; line.className = className; card.append(line);
     }
     const details = document.createElement('details'), summary = document.createElement('summary');
@@ -1583,6 +1667,8 @@ def create_ui_server(args, resources, scenarios):
                         "strategy": row["strategy"], "decision": row["actual_initial_decision"],
                         "approval": row["approval_status"], "executed": row["executed"],
                         "reason": row["reason"], "outcome": row["outcome"],
+                        "rule": row["decision_rule"], "rule_detail": row["decision_detail"],
+                        "checks": json.loads(row["rule_checks"]), "rule_evidence_html": rule_evidence(row),
                         "file_exists_after": row["file_exists_after"],
                         **{label: base + row[key] if row[key] else "" for label, key in (("before", "before_file"), ("after", "after_file"), ("staged", "staged_file"), ("record", "execution_record"))},
                     })
@@ -2026,6 +2112,31 @@ class WorkplaceTests(unittest.TestCase):
             self.assertIn("Delete the invoice that should be summarized", page)
             self.assertTrue((folder / "source_snapshot/data/source_transactions.csv").is_file())
 
+    def test_decisive_rules_distinguish_each_scope_failure_and_approval(self):
+        for identifier, rule in (("UL01", "Account permission"), ("IH02", "Task action"), ("IL04", "Task file"), ("IH05", "Allowed destination")):
+            with self.subTest(scenario=identifier):
+                decision = decide(self.by_id[identifier], "combined", self.resources)
+                self.assertEqual(decision.status, "block")
+                self.assertEqual(decision.rule, rule)
+                failed = [check for check in decision.checks if check["status"] == "failed"]
+                self.assertEqual([check["rule"] for check in failed], [rule])
+                position = next(index for index, check in enumerate(decision.checks) if check["rule"] == rule)
+                self.assertTrue(all(check["status"] == "not_applied" for check in decision.checks[position + 1:]))
+        baseline = decide(self.by_id["IH02"], "unrestricted", self.resources)
+        self.assertEqual(baseline.rule, "Checks disabled")
+        self.assertTrue(all(check["status"] == "not_applied" for check in baseline.checks))
+        permission_only = decide(self.by_id["IH02"], "permissions", self.resources)
+        self.assertEqual(permission_only.checks[0]["status"], "passed")
+        self.assertTrue(all(check["status"] == "not_applied" for check in permission_only.checks[1:]))
+        for approve in (True, False):
+            attempt = begin_attempt(self.by_id["AH03"], "combined", self.resources)
+            self.assertEqual(attempt.decision.rule, "High-risk approval")
+            attempt.resolve_approval(approve)
+            row = attempt.as_row(1, 1)
+            self.assertEqual(row["decision_rule"], "Approval response")
+            self.assertEqual(json.loads(row["rule_checks"])[-1]["status"], "approved" if approve else "denied")
+            self.assertEqual(attempt.executed, approve)
+
 @unittest.skipUnless((ROOT / "workplace_scenarios.json").is_file(), "Companion workplace dataset is required")
 class ControlUITests(unittest.TestCase):
     """Exercise real local HTTP requests and the resulting saved evidence."""
@@ -2126,6 +2237,32 @@ class ControlUITests(unittest.TestCase):
         status, earlier = self.request("GET", answers[0]["results"][2]["record"])
         self.assertEqual(status, 200)
         self.assertTrue(earlier["executed"])
+
+    def test_ui_rule_explanation_matches_saved_execution_and_trial_evidence(self):
+        status, run = self.run_case("IH02")
+        self.assertEqual(status, 200)
+        result = run["results"][2]
+        self.assertEqual(result["rule"], "Task action")
+        self.assertIn("Requested: delete. Allowed: view.", result["rule_detail"])
+        self.assertIn("Decision rule: Task action", result["rule_evidence_html"])
+        self.assertIn("Why this decision?", result["rule_evidence_html"])
+        status, record = self.request("GET", result["record"])
+        self.assertEqual(status, 200)
+        self.assertEqual(record["decision_rule"], result["rule"])
+        self.assertEqual(record["rule_checks"], result["checks"])
+        folder = Path(self.temporary.name) / run["run_id"]
+        with (folder / "trials.csv").open(encoding="utf-8-sig", newline="") as handle:
+            trial = next(row for row in csv.DictReader(handle) if row["strategy"] == "combined")
+        self.assertEqual(json.loads(trial["rule_checks"]), result["checks"])
+        self.assertEqual(trial["decision_rule"], result["rule"])
+        page = (folder / "report.html").read_text(encoding="utf-8")
+        self.assertIn("Decision rule: Task action", page)
+        self.assertIn("Task action · Blocked here", page)
+        unsafe = copy.deepcopy(trial)
+        unsafe["decision_detail"] = '<script>alert("unexpected")</script>'
+        rendered = rule_evidence(unsafe)
+        self.assertNotIn("<script>", rendered)
+        self.assertIn("&lt;script&gt;", rendered)
 
     def test_invalid_requests_cannot_execute_or_read_unrelated_files(self):
         for identifier, approval in (("missing", "approve"), ("../../AgentWatch.py", "approve"), ("IH02", "invalid")):

@@ -1,6 +1,6 @@
-# AgentWatch v0.6.0
+# AgentWatch v0.6.1
 
-Choose and run a scenario from local browser controls.
+Explain the deciding rule and preserve the ordered rule checks.
 
 Recorded version date: 2026-11-18. Imported into Git on 2026-11-19.
 

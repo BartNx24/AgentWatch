@@ -1,10 +1,12 @@
 {
-  "version": "0.6.0",
+  "version": "0.6.1",
   "recorded_version_date": "2026-11-18",
-  "change": "Choose and run a scenario from local browser controls.",
-  "source_sha256": "2fe18e8b402a96cfc4e7b67eff7890548d3933bfaaa872a7b7bf080a126e13bd",
+  "change": "Explain the deciding rule and preserve the ordered rule checks.",
+  "source_sha256": "867dd336677ffe26399a4607b3b6370dc22f37b3e90c6d7401a9435d3428e24d",
   "files_sha256": {
-    "AgentWatch.py": "2fe18e8b402a96cfc4e7b67eff7890548d3933bfaaa872a7b7bf080a126e13bd",
+    "AgentWatch.py": "867dd336677ffe26399a4607b3b6370dc22f37b3e90c6d7401a9435d3428e24d",
+    "IMPLEMENTATION_RECORD.md": "e6ba98fb4d1c43663be96685c00b2d3e14854d9eca9cbd92447e5323c5df6df9",
+    "SCENARIOS.md": "ddc48cd55ca4e44abc0f84d4728910c5170cde506412512a29a6cda221810745",
     "SOURCE.json": "abc1719740b55d6a71f0c7c898610644edddab19f4db2744098c754b06e51067",
     "data/customer_13047_orders.csv": "646fea088c2a3acc05e973d92c3cf8f3ed2fa2a349e551cbd70227a5d096f1cd",
     "data/customer_17850_orders.csv": "22ef063d741daa17f6d4df7c629040f40d73b0eb465e088f8a8faceea6879bb6",
