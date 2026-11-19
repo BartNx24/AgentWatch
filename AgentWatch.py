@@ -1,4 +1,4 @@
-"""AgentWatch 0.3.0 - single-file scenario simulation
+"""AgentWatch 0.4.0 - single-file scenario simulation
 
 SAVE AND RUN
     Save this file as AgentWatch.py in a folder you can write to.
@@ -6,6 +6,10 @@ SAVE AND RUN
     Run the 30 scenarios under three strategies (90 runs):
 
         py AgentWatch.py --open
+
+    Use the published lab measurements supplied in this folder:
+
+        py AgentWatch.py --scenarios uci_wine_scenarios.json --approval approve --open
 
     Run all built-in automated checks:
 
@@ -18,7 +22,8 @@ RESULTS
     The terminal prints a report.html path. Open that file in your browser.
     Each uniquely named results folder also contains trial and summary CSVs,
     a SQLite database, run metadata and a snapshot of this exact Python file.
-    Everything required to run the simulation is embedded in this source file.
+    The runner includes a fictional demonstration suite. An external suite
+    supplied with --scenarios is copied into the run snapshot.
     Output files are generated automatically when you run it.
 
 OPTIONAL RUNS
@@ -52,6 +57,8 @@ VERSION RECORD
             Add a regression check for closure on success and failure.
     0.3.0 - 31 October 2026: add --open to open the exact newly generated report,
             display the approval mode prominently, and verify refusal exports.
+    0.4.0 - 10 November 2026: identify the dataset in run reports and include
+            an optional suite based on published lab measurements.
     Created with ChatGPT assistance. Individual student contributions remain
     to be recorded against the work they actually complete and validate.
 """
@@ -454,7 +461,7 @@ SCENARIO_SUITE = {'suite_version': '1.0',
 
 # region Policy decisions and mock execution
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 
 STRATEGIES = ("unrestricted", "permissions", "combined")
@@ -573,7 +580,7 @@ class MockWorkspace:
         resource = self.files[resource_id]
         payload = action.get("payload", {})
         if kind == "read":
-            outcome = f"Read {len(resource['content'])} fictional characters"
+            outcome = f"Read {len(resource['content'])} characters from the working copy"
         elif kind == "list":
             outcome = f"Listed mock resource {resource_id}"
         elif kind == "tag":
@@ -804,6 +811,9 @@ def write_report(path, metadata, rows, summary):
     @media(max-width:650px) {.metrics{grid-template-columns:1fr} main{padding:20px 14px} h1{font-size:25px}}
     @media print {body{background:white}main{padding:0}.table-wrap{overflow:visible} th{background:#eee}}
     """
+    source_link = ""
+    if "external_scenarios.json" in metadata.get("source_snapshot_sha256", {}):
+        source_link = " &middot; <a href='source_snapshot/external_scenarios.json'>Dataset and source details</a>"
     pieces = ["<!doctype html><html lang='en'><head><meta charset='utf-8'>",
               "<meta name='viewport' content='width=device-width, initial-scale=1'>",
               f"<title>AgentWatch {esc(metadata['approval_response'].upper())} | {esc(metadata['run_id'])}</title><style>{css}</style></head><body><main>",
@@ -812,7 +822,8 @@ def write_report(path, metadata, rows, summary):
               f"<p class='run-mode'>Approval response: {esc(metadata['approval_response'].upper())}</p>",
               f"<p class='meta'>Version {esc(VERSION)} &middot; Run <code>{esc(metadata['run_id'])}</code><br>",
               f"Started {esc(metadata['started_at_utc'])} &middot; {metadata['rounds']} round(s) &middot; Seed {metadata['random_seed']}</p>",
-              "<p>This run uses predefined action requests and fictional in-memory files. Approvals are scripted. "
+              f"<p class='meta'>Dataset <code>{esc(metadata.get('scenario_input', 'Embedded fictional suite'))}</code>{source_link}</p>",
+              "<p>This run applies predefined action requests to in-memory copies of the data. Task scopes, access rules and approvals are configured for the experiment. "
               "The outputs test the declared rules in these scenarios; no live AI agent or real human response time is evaluated.</p>",
               "<div class='metrics'>",
               f"<div class='metric'><strong>{metadata['scenario_count']}</strong><span>scenarios per round</span></div>",
@@ -910,6 +921,7 @@ def main(argv=None):
     summary = summarize(rows)
     metadata = {
         "run_id": run_id, "prototype_version": VERSION, "scenario_suite_version": "embedded-1.0" if args.scenarios is None else "external-see-source-snapshot",
+        "scenario_input": args.scenarios.name if args.scenarios else "Embedded fictional suite",
         "started_at_utc": started.isoformat(), "completed_at_utc": datetime.now(timezone.utc).isoformat(),
         "python_version": platform.python_version(), "platform": platform.system(),
         "operator_entered_by_user": args.operator, "rounds": args.rounds,
@@ -933,7 +945,8 @@ def main(argv=None):
     combined = next(row for row in summary if row["strategy"] == "combined")
     print(f"Combined legitimate tasks completed: {combined['legitimate_tasks_completed']}/{combined['legitimate_attempts']} | Simulated approval refusals: {combined['simulated_approval_denials']}")
     print(f"Initial decisions and risk labels matching expectations: {matches}/{len(rows)}")
-    print("Fictional data; scripted approvals. Waiting time is assumed and is not actually waited.")
+    print(f"Scenario dataset: {metadata['scenario_input']}")
+    print("Approval responses are scripted. Estimated totals use the assumed waiting time.")
     print(f"Open report: {report_path}")
     print(f"Saved CSV, SQLite, metadata and source snapshot in: {folder}")
     if args.open_report:

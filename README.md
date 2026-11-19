@@ -1,11 +1,11 @@
-# AgentWatch v0.3.0
+# AgentWatch v0.4.0
 
-Open the exact new report and clearly identify the approval setting.
+Add a scenario suite using published UCI Wine measurements.
 
-Recorded version date: 2026-10-31. Imported into Git on 2026-11-19.
+Recorded version date: 2026-11-10. Imported into Git on 2026-11-19.
 
 ```powershell
-py AgentWatch.py --open
+py AgentWatch.py --scenarios uci_wine_scenarios.json --open
 ```
 
 Automated checks:
