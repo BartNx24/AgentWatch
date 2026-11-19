@@ -1,11 +1,11 @@
-"""AgentWatch 0.2.1 - single-file scenario simulation
+"""AgentWatch 0.3.0 - single-file scenario simulation
 
 SAVE AND RUN
     Save this file as AgentWatch.py in a folder you can write to.
     Open it in VS Code. Open Terminal > New Terminal in that folder.
     Run the 30 scenarios under three strategies (90 runs):
 
-        py AgentWatch.py
+        py AgentWatch.py --open
 
     Run all built-in automated checks:
 
@@ -23,6 +23,7 @@ RESULTS
 
 OPTIONAL RUNS
     py AgentWatch.py --approval deny
+    py AgentWatch.py --approval deny --open
     py AgentWatch.py --rounds 3 --seed 42 --approval-seconds 10
     py AgentWatch.py --operator "Bart"
     py AgentWatch.py --help
@@ -49,6 +50,8 @@ VERSION RECORD
     0.2.1 - 29 October 2026: explicitly close SQLite connections in exports and
             test verification so Windows can clean up temporary databases.
             Add a regression check for closure on success and failure.
+    0.3.0 - 31 October 2026: add --open to open the exact newly generated report,
+            display the approval mode prominently, and verify refusal exports.
     Created with ChatGPT assistance. Individual student contributions remain
     to be recorded against the work they actually complete and validate.
 """
@@ -56,10 +59,12 @@ VERSION RECORD
 from __future__ import annotations
 
 import copy
+import io
 import json
 import math
+import os
 from collections import Counter
-from contextlib import closing
+from contextlib import closing, redirect_stdout
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter_ns
@@ -76,6 +81,7 @@ from uuid import uuid4
 import subprocess
 import tempfile
 import unittest
+import webbrowser
 from unittest.mock import patch
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -448,7 +454,7 @@ SCENARIO_SUITE = {'suite_version': '1.0',
 
 # region Policy decisions and mock execution
 
-VERSION = "0.2.1"
+VERSION = "0.3.0"
 
 
 STRATEGIES = ("unrestricted", "permissions", "combined")
@@ -783,6 +789,7 @@ def write_report(path, metadata, rows, summary):
     :root {color-scheme:light; font-family:Segoe UI,Arial,sans-serif; color:#162332; background:#f0f3f6}
     body {margin:0} main {max-width:1200px; margin:auto; padding:30px 24px 64px}
     h1 {font-size:30px; margin:6px 0 12px} h2 {margin:30px 0 12px; font-size:22px}
+    .run-mode {font-size:21px;font-weight:700;background:#fff0ca;border:1px solid #d8b65d;border-radius:6px;padding:14px 18px;margin:16px 0}
     p {line-height:1.55; max-width:1000px} .meta {font-size:13px; color:#4d6173}
     .metrics {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:22px 0}
     .metric {background:white;border:1px solid #d7dfe7;border-radius:8px;padding:18px}
@@ -799,9 +806,10 @@ def write_report(path, metadata, rows, summary):
     """
     pieces = ["<!doctype html><html lang='en'><head><meta charset='utf-8'>",
               "<meta name='viewport' content='width=device-width, initial-scale=1'>",
-              f"<title>AgentWatch run {esc(metadata['run_id'])}</title><style>{css}</style></head><body><main>",
+              f"<title>AgentWatch {esc(metadata['approval_response'].upper())} | {esc(metadata['run_id'])}</title><style>{css}</style></head><body><main>",
               "<div class='meta'>AGENTWATCH / CONTROLLED SCENARIO SIMULATION</div>",
               "<h1>Authorization strategy comparison</h1>",
+              f"<p class='run-mode'>Approval response: {esc(metadata['approval_response'].upper())}</p>",
               f"<p class='meta'>Version {esc(VERSION)} &middot; Run <code>{esc(metadata['run_id'])}</code><br>",
               f"Started {esc(metadata['started_at_utc'])} &middot; {metadata['rounds']} round(s) &middot; Seed {metadata['random_seed']}</p>",
               "<p>This run uses predefined action requests and fictional in-memory files. Approvals are scripted. "
@@ -809,7 +817,8 @@ def write_report(path, metadata, rows, summary):
               "<div class='metrics'>",
               f"<div class='metric'><strong>{metadata['scenario_count']}</strong><span>scenarios per round</span></div>",
               f"<div class='metric'><strong>{len(rows)}</strong><span>scenario-condition runs</span></div>",
-              f"<div class='metric'><strong>{sum(r['decision_matches_expectation'] for r in rows)}/{len(rows)}</strong><span>initial decisions matching the declared expectation</span></div></div>",
+              f"<div class='metric'><strong>{sum(r['decision_matches_expectation'] for r in rows)}/{len(rows)}</strong><span>initial decisions matching expectations before approval</span></div></div>",
+              "<p class='small'>The decision-match count evaluates the initial authorization rules. Refusing approval changes executed actions and legitimate task completion; this initial-decision count can still be 90/90.</p>",
               "<h2>Security and task completion</h2><div class='table-wrap'><table><thead><tr>",
               "<th>Strategy</th><th>Attempts</th><th>Unauthorized blocked</th><th>Inappropriate blocked</th>"
               "<th>False positives</th><th>Legitimate tasks completed</th><th>Approval requests</th><th>Approval frequency</th></tr></thead><tbody>"]
@@ -856,11 +865,24 @@ def write_report(path, metadata, rows, summary):
     path.write_text("\n".join(pieces), encoding="utf-8")
 
 
+def open_generated_report(path):
+    """Open this run's exact report, without selecting any earlier result."""
+    report_path = path.resolve()
+    if not report_path.is_file():
+        raise FileNotFoundError(f"Report does not exist: {report_path}")
+    if sys.platform == "win32":
+        # Windows opens HTML with its associated application, normally a browser.
+        os.startfile(str(report_path))
+        return True
+    return webbrowser.open(report_path.as_uri(), new=2)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--version", action="version", version=f"AgentWatch {VERSION}")
     parser.add_argument("--scenarios", type=Path, default=None, help="Optional external suite; the 30 embedded scenarios are used by default")
     parser.add_argument("--test", action="store_true", help="Run the built-in automated checks")
+    parser.add_argument("--open", dest="open_report", action="store_true", help="Open the exact report generated by this run")
     parser.add_argument("--output", type=Path, default=ROOT / "results", help="Parent folder for uniquely named runs")
     parser.add_argument("--rounds", type=positive_int, default=1)
     parser.add_argument("--seed", type=int, default=42)
@@ -903,13 +925,25 @@ def main(argv=None):
     write_csv(folder / "summary.csv", summary)
     (folder / "run_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     save_database(folder / "results.sqlite", metadata, rows, summary)
-    write_report(folder / "report.html", metadata, rows, summary)
+    report_path = folder / "report.html"
+    write_report(report_path, metadata, rows, summary)
     matches = sum(r["decision_matches_expectation"] and r["risk_matches_expectation"] for r in rows)
     print(f"AgentWatch {VERSION} | {len(scenarios)} scenarios x 3 strategies x {args.rounds} round(s) = {len(rows)} runs")
+    print(f"Scripted approval response: {args.approval.upper()}")
+    combined = next(row for row in summary if row["strategy"] == "combined")
+    print(f"Combined legitimate tasks completed: {combined['legitimate_tasks_completed']}/{combined['legitimate_attempts']} | Simulated approval refusals: {combined['simulated_approval_denials']}")
     print(f"Initial decisions and risk labels matching expectations: {matches}/{len(rows)}")
     print("Fictional data; scripted approvals. Waiting time is assumed and is not actually waited.")
-    print(f"Open report: {folder / 'report.html'}")
+    print(f"Open report: {report_path}")
     print(f"Saved CSV, SQLite, metadata and source snapshot in: {folder}")
+    if args.open_report:
+        try:
+            opened = open_generated_report(report_path)
+        except (OSError, webbrowser.Error) as error:
+            print(f"Automatic opening unavailable: {error}")
+            opened = False
+        if not opened:
+            print(f"Open this exact report manually: {report_path}")
     return 0 if matches == len(rows) else 1
 
 # endregion
@@ -1068,6 +1102,65 @@ class PolicyTests(unittest.TestCase):
 
 
 class ExportTests(unittest.TestCase):
+    def test_cli_denial_run_exports_five_refusals_and_correct_report_label(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT_PATH), "--approval", "deny", "--output", temporary],
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Scripted approval response: DENY", result.stdout)
+            self.assertIn("Combined legitimate tasks completed: 5/10", result.stdout)
+            folder = next(Path(temporary).iterdir())
+            metadata = json.loads((folder / "run_metadata.json").read_text())
+            self.assertEqual(metadata["approval_response"], "deny")
+            with (folder / "summary.csv").open(encoding="utf-8-sig", newline="") as handle:
+                combined = next(row for row in csv.DictReader(handle) if row["strategy"] == "combined")
+            self.assertEqual(combined["legitimate_tasks_completed"], "5")
+            self.assertEqual(combined["simulated_approval_denials"], "5")
+            self.assertEqual(combined["initial_decisions_matching_expectation"], "30")
+            report = (folder / "report.html").read_text(encoding="utf-8")
+            self.assertIn("Approval response: DENY", report)
+            self.assertIn("<title>AgentWatch DENY |", report)
+            self.assertIn("90/90", report)
+
+    def test_report_opener_uses_exact_path_including_spaces(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            report = Path(temporary) / "report with spaces.html"
+            report.write_text("<!doctype html><title>Test report</title>", encoding="utf-8")
+            with patch.object(sys, "platform", "win32"), patch.object(os, "startfile", create=True) as launch:
+                self.assertTrue(open_generated_report(report))
+                launch.assert_called_once_with(str(report.resolve()))
+            with patch.object(sys, "platform", "linux"), patch.object(webbrowser, "open", return_value=True) as launch:
+                self.assertTrue(open_generated_report(report))
+                launch.assert_called_once_with(report.resolve().as_uri(), new=2)
+
+    def test_open_option_opens_this_run_and_preserves_earlier_reports(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch(__name__ + ".open_generated_report", return_value=True) as launch, redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["--output", temporary]), 0)
+                launch.assert_not_called()
+                earlier = set(Path(temporary).iterdir())
+                earlier_reports = {folder: (folder / "report.html").read_bytes() for folder in earlier}
+                self.assertEqual(main(["--approval", "deny", "--open", "--output", temporary]), 0)
+            created = set(Path(temporary).iterdir()) - earlier
+            self.assertEqual(len(created), 1)
+            latest = created.pop()
+            launch.assert_called_once_with(latest / "report.html")
+            self.assertIn("Approval response: DENY", (latest / "report.html").read_text(encoding="utf-8"))
+            for folder, contents in earlier_reports.items():
+                self.assertEqual((folder / "report.html").read_bytes(), contents)
+
+    def test_browser_failure_keeps_results_and_prints_exact_report_path(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            captured = io.StringIO()
+            with patch(__name__ + ".open_generated_report", side_effect=OSError("No HTML handler")), redirect_stdout(captured):
+                self.assertEqual(main(["--approval", "deny", "--open", "--output", temporary]), 0)
+            report = next(Path(temporary).iterdir()) / "report.html"
+            self.assertTrue(report.is_file())
+            self.assertIn("Automatic opening unavailable: No HTML handler", captured.getvalue())
+            self.assertIn(f"Open this exact report manually: {report}", captured.getvalue())
+
     def test_database_export_always_closes_its_connection(self):
         original_connect = sqlite3.connect
         for invalid_metadata in (False, True):

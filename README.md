@@ -1,11 +1,11 @@
-# AgentWatch v0.2.1
+# AgentWatch v0.3.0
 
-Close SQLite connections so Windows can clean up exported databases.
+Open the exact new report and clearly identify the approval setting.
 
-Recorded version date: 2026-10-29. Imported into Git on 2026-11-19.
+Recorded version date: 2026-10-31. Imported into Git on 2026-11-19.
 
 ```powershell
-py AgentWatch.py
+py AgentWatch.py --open
 ```
 
 Automated checks:
