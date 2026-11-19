@@ -1,0 +1,14 @@
+{
+  "version": "0.2.1",
+  "recorded_version_date": "2026-10-29",
+  "change": "Close SQLite connections so Windows can clean up exported databases.",
+  "source_sha256": "13ea15bb1f7bafb1d18c203f7b076dcce474318ebb2f6c8312870717585c0992",
+  "files_sha256": {
+    "AgentWatch.py": "13ea15bb1f7bafb1d18c203f7b076dcce474318ebb2f6c8312870717585c0992"
+  },
+  "code_path": "AgentWatch.py",
+  "retained_original_run_metadata": true,
+  "test_command": "py AgentWatch.py --test",
+  "run_command": "py AgentWatch.py",
+  "date_note": "Source header records 29 October. The preserved run snapshot is dated 31 October; the file was not backdated during this import."
+}

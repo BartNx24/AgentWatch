@@ -1,0 +1,44 @@
+{
+  "version_or_revision": "0.5.0 revision 950733ea0b8f",
+  "checked_at_utc": "2026-11-19T08:02:44.400364+00:00",
+  "command": "python AgentWatch.py --test",
+  "environment": "Assistant archive verification, Linux; not a historical user test run",
+  "exit_code": 0,
+  "test_count": 30
+}
+
+test_all_ninety_initial_decisions_match_independent_expectations (__main__.PolicyTests.test_all_ninety_initial_decisions_match_independent_expectations) ... ok
+test_approval_cannot_override_a_block (__main__.PolicyTests.test_approval_cannot_override_a_block) ... ok
+test_approval_grant_executes_once_and_records_order (__main__.PolicyTests.test_approval_grant_executes_once_and_records_order) ... ok
+test_approval_refusals_are_separate_from_policy_false_positives (__main__.PolicyTests.test_approval_refusals_are_separate_from_policy_false_positives) ... ok
+test_balanced_scenario_coverage (__main__.PolicyTests.test_balanced_scenario_coverage) ... ok
+test_confidential_risk_cannot_be_lowered_by_an_action_claim (__main__.PolicyTests.test_confidential_risk_cannot_be_lowered_by_an_action_claim) ... ok
+test_deletion_does_not_touch_host_files (__main__.PolicyTests.test_deletion_does_not_touch_host_files) ... ok
+test_estimated_time_keeps_assumed_delay_separate (__main__.PolicyTests.test_estimated_time_keeps_assumed_delay_separate) ... ok
+test_ground_truth_matches_independently_derived_inputs (__main__.PolicyTests.test_ground_truth_matches_independently_derived_inputs) ... ok
+test_invalid_approval_delay_is_rejected (__main__.PolicyTests.test_invalid_approval_delay_is_rejected) ... ok
+test_pending_approval_cannot_execute (__main__.PolicyTests.test_pending_approval_cannot_execute) ... ok
+test_recipient_scope_is_enforced (__main__.PolicyTests.test_recipient_scope_is_enforced) ... ok
+test_refusal_cannot_be_reapproved_or_executed (__main__.PolicyTests.test_refusal_cannot_be_reapproved_or_executed) ... ok
+test_resource_scope_is_enforced (__main__.PolicyTests.test_resource_scope_is_enforced) ... ok
+test_runtime_policy_does_not_trust_expected_labels (__main__.PolicyTests.test_runtime_policy_does_not_trust_expected_labels) ... ok
+test_security_and_success_metrics_have_correct_denominators (__main__.PolicyTests.test_security_and_success_metrics_have_correct_denominators) ... ok
+test_unknown_action_fails (__main__.PolicyTests.test_unknown_action_fails) ... ok
+test_unknown_strategy_fails (__main__.PolicyTests.test_unknown_strategy_fails) ... ok
+test_workspace_is_reset_between_trials (__main__.PolicyTests.test_workspace_is_reset_between_trials) ... ok
+test_browser_failure_keeps_results_and_prints_exact_report_path (__main__.ExportTests.test_browser_failure_keeps_results_and_prints_exact_report_path) ... ok
+test_cli_denial_run_exports_five_refusals_and_correct_report_label (__main__.ExportTests.test_cli_denial_run_exports_five_refusals_and_correct_report_label) ... ok
+test_cli_exports_two_complete_rounds_and_verified_source_snapshot (__main__.ExportTests.test_cli_exports_two_complete_rounds_and_verified_source_snapshot) ... ok
+test_cli_rejects_nonfinite_delays (__main__.ExportTests.test_cli_rejects_nonfinite_delays) ... ok
+test_database_export_always_closes_its_connection (__main__.ExportTests.test_database_export_always_closes_its_connection) ... ok
+test_open_option_opens_this_run_and_preserves_earlier_reports (__main__.ExportTests.test_open_option_opens_this_run_and_preserves_earlier_reports) ... ok
+test_report_opener_uses_exact_path_including_spaces (__main__.ExportTests.test_report_opener_uses_exact_path_including_spaces) ... ok
+test_delete_price_change_and_export_retain_inspectable_working_file_evidence (__main__.WorkplaceTests.test_delete_price_change_and_export_retain_inspectable_working_file_evidence) ... ok
+test_invoice_values_and_source_rows_match_the_retained_extract (__main__.WorkplaceTests.test_invoice_values_and_source_rows_match_the_retained_extract) ... ok
+test_single_case_cli_shows_real_invoice_and_three_actual_outcomes (__main__.WorkplaceTests.test_single_case_cli_shows_real_invoice_and_three_actual_outcomes) ... ok
+test_workplace_labels_match_independent_permission_scope_and_risk_checks (__main__.WorkplaceTests.test_workplace_labels_match_independent_permission_scope_and_risk_checks) ... ok
+
+----------------------------------------------------------------------
+Ran 30 tests in 1.651s
+
+OK

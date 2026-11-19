@@ -1,0 +1,260 @@
+{
+  "archive_prepared_at_utc": "2026-11-19T08:01:52.523570+00:00",
+  "archive_import_date": "2026-11-19",
+  "date_basis": "Recorded version dates are retained from source headers. Git commits are new imports dated when this package was prepared.",
+  "authorship": "AI-assisted software; import commits identify the archive importer and do not assign group contributions.",
+  "versions": [
+    {
+      "version": "0.1.0",
+      "recorded_version_date": "2026-10-29",
+      "change": "Multi-file starter with 30 scenarios, tests and evidence exports.",
+      "source_sha256": "0bb1553666a9b709e6d822037340f5475b1b80f360aa5ac9e765b5e8a9060802",
+      "files_sha256": {
+        "CHANGELOG.md": "98ac146d6a0c72fad97c1dceefc704430c77fe059ee5b7ea76c39f87f0e85c2c",
+        "DECISIONS.md": "34b5ac3b66acff8aef543cc25cd7a3b16a4917089869b595fec388e73be82595",
+        "README.md": "0a6bec45d9b86cfbe2b58035ca96b06e9b8d2135003b03ebbd6d68ce048a037a",
+        "VERIFICATION.txt": "70bbae5dd1e862012cf80447cf818bae8f5b386a692525c7949f2ff012f107bf",
+        "agentwatch.py": "0bb1553666a9b709e6d822037340f5475b1b80f360aa5ac9e765b5e8a9060802",
+        "run_simulation.py": "0e8f5684f28059953f0375e37b3cec368853cb8b8969a4289e62c2c12eafe1f6",
+        "scenarios.json": "02e63b60a044759751bf74174bc5e75ffcb68c683ea394b52a2dd6013cbd9341",
+        "tests/test_agentwatch.py": "de979ef11129e50a5396b58f9274c4c256c84efb3b97691bd2c3b11260f05c68"
+      },
+      "code_path": "agentwatch.py",
+      "retained_original_run_metadata": true,
+      "test_command": "py -m unittest discover -s tests -v",
+      "run_command": "py run_simulation.py",
+      "git_commit": "65ecc3bea22eaa925e9a54294b8ef17e88eb71fb",
+      "tag": "v0.1.0",
+      "import_verification": {
+        "test_count": 21,
+        "exit_code": 0,
+        "evidence_path": "evidence/import_verification/0.1.0.txt"
+      }
+    },
+    {
+      "version": "0.2.0",
+      "recorded_version_date": "2026-10-29",
+      "change": "Consolidate the prototype and tests into one Python file.",
+      "source_sha256": "23484ad0732877cb44d94a2ddf2e14aab5273d0f066a1a30b3278801c57dcfae",
+      "files_sha256": {
+        "AgentWatch.py": "23484ad0732877cb44d94a2ddf2e14aab5273d0f066a1a30b3278801c57dcfae"
+      },
+      "code_path": "AgentWatch.py",
+      "retained_original_run_metadata": true,
+      "test_command": "py AgentWatch.py --test",
+      "run_command": "py AgentWatch.py",
+      "git_commit": "6175a99f043fdcd7873e4d2e3df65a533b792119",
+      "tag": "v0.2.0",
+      "import_verification": {
+        "test_count": 21,
+        "exit_code": 0,
+        "evidence_path": "evidence/import_verification/0.2.0.txt"
+      }
+    },
+    {
+      "version": "0.2.1",
+      "recorded_version_date": "2026-10-29",
+      "change": "Close SQLite connections so Windows can clean up exported databases.",
+      "source_sha256": "13ea15bb1f7bafb1d18c203f7b076dcce474318ebb2f6c8312870717585c0992",
+      "files_sha256": {
+        "AgentWatch.py": "13ea15bb1f7bafb1d18c203f7b076dcce474318ebb2f6c8312870717585c0992"
+      },
+      "code_path": "AgentWatch.py",
+      "retained_original_run_metadata": true,
+      "test_command": "py AgentWatch.py --test",
+      "run_command": "py AgentWatch.py",
+      "date_note": "Source header records 29 October. The preserved run snapshot is dated 31 October; the file was not backdated during this import.",
+      "git_commit": "21fe38b37135ccb6f3ea234e99cf4c4d99a23520",
+      "tag": "v0.2.1",
+      "import_verification": {
+        "test_count": 22,
+        "exit_code": 0,
+        "evidence_path": "evidence/import_verification/0.2.1.txt"
+      }
+    },
+    {
+      "version": "0.3.0",
+      "recorded_version_date": "2026-10-31",
+      "change": "Open the exact new report and clearly identify the approval setting.",
+      "source_sha256": "b2f444554f8458c346faeaffa5c42508efc3ef5c6381ec6b2e10ee87e5d4b8d9",
+      "files_sha256": {
+        "AgentWatch.py": "b2f444554f8458c346faeaffa5c42508efc3ef5c6381ec6b2e10ee87e5d4b8d9"
+      },
+      "code_path": "AgentWatch.py",
+      "retained_original_run_metadata": false,
+      "test_command": "py AgentWatch.py --test",
+      "run_command": "py AgentWatch.py --open",
+      "git_commit": "ffcfd3090e8ef28148d6e8a86eba7aacd360530e",
+      "tag": "v0.3.0",
+      "import_verification": {
+        "test_count": 26,
+        "exit_code": 0,
+        "evidence_path": "evidence/import_verification/0.3.0.txt"
+      }
+    },
+    {
+      "version": "0.4.0",
+      "recorded_version_date": "2026-11-10",
+      "change": "Add a scenario suite using published UCI Wine measurements.",
+      "source_sha256": "057f1cf5324f83867f3b63f8e8197d65b2421ae7546cf5672323c45efb7f7c64",
+      "files_sha256": {
+        "AgentWatch.py": "057f1cf5324f83867f3b63f8e8197d65b2421ae7546cf5672323c45efb7f7c64",
+        "source_wine_data.csv": "10e8a802908b34f86e5da8ce962f3c806694bc98450a18f61851af59f324bede",
+        "uci_wine_scenarios.json": "7c9862c00401a350b335d523332718f6f61692b8b5abf4214804b16cbb1a1d60"
+      },
+      "code_path": "AgentWatch.py",
+      "retained_original_run_metadata": true,
+      "test_command": "py AgentWatch.py --test",
+      "run_command": "py AgentWatch.py --scenarios uci_wine_scenarios.json --open",
+      "git_commit": "3bd87c51c642120a3189cef477747d310d9d88cf",
+      "tag": "v0.4.0",
+      "import_verification": {
+        "test_count": 26,
+        "exit_code": 0,
+        "evidence_path": "evidence/import_verification/0.4.0.txt"
+      }
+    },
+    {
+      "version": "0.4.1",
+      "recorded_version_date": "2026-11-10",
+      "change": "Simplify the results into a plain-language comparison.",
+      "source_sha256": "8f9051e7a0c6a1e41b76dbb224920b2f2507236ceeaeb3d00271d325e3e63dee",
+      "files_sha256": {
+        "AgentWatch.py": "8f9051e7a0c6a1e41b76dbb224920b2f2507236ceeaeb3d00271d325e3e63dee",
+        "source_wine_data.csv": "10e8a802908b34f86e5da8ce962f3c806694bc98450a18f61851af59f324bede",
+        "uci_wine_scenarios.json": "7c9862c00401a350b335d523332718f6f61692b8b5abf4214804b16cbb1a1d60"
+      },
+      "code_path": "AgentWatch.py",
+      "retained_original_run_metadata": true,
+      "test_command": "py AgentWatch.py --test",
+      "run_command": "py AgentWatch.py --scenarios uci_wine_scenarios.json --open",
+      "git_commit": "c8843952e3aee61d4ee70a36d021c7b7df3a1ae7",
+      "tag": "v0.4.1",
+      "import_verification": {
+        "test_count": 26,
+        "exit_code": 0,
+        "evidence_path": "evidence/import_verification/0.4.1.txt"
+      }
+    },
+    {
+      "version": "0.5.0",
+      "recorded_version_date": "2026-11-16",
+      "change": "Use real invoice records and retain before-and-after file evidence.",
+      "source_sha256": "a23e5e08e09e835798bb4f430cfe41a13a5e0857052fa8aec0e35c6efa440889",
+      "files_sha256": {
+        "AgentWatch.py": "a23e5e08e09e835798bb4f430cfe41a13a5e0857052fa8aec0e35c6efa440889",
+        "SOURCE.json": "abc1719740b55d6a71f0c7c898610644edddab19f4db2744098c754b06e51067",
+        "data/customer_13047_orders.csv": "646fea088c2a3acc05e973d92c3cf8f3ed2fa2a349e551cbd70227a5d096f1cd",
+        "data/customer_17850_orders.csv": "22ef063d741daa17f6d4df7c629040f40d73b0eb465e088f8a8faceea6879bb6",
+        "data/invoice_536365.csv": "fca4f82a710dd5292e0d5f8c98eaa419447bae2b10be2b213d4ffc53adda23fc",
+        "data/invoice_536366.csv": "5da1fb33b276766a8c7b72f1abd38d567a48680cc134b01c1ed4e1553c4b0d27",
+        "data/invoice_536367.csv": "a8c915f3ad518ea6c70bd0a0d7a6cd768fc083eb49c9990e230d685e053b7f83",
+        "data/invoice_536370.csv": "d721ea1e49ccaebd6da5f37bdd311ba5e964e40461308c7da6d2512ef274bf2d",
+        "data/invoice_536374.csv": "bd4e9c632fc692389185ed67ce92b32379ca0349f0b45377b6fbc871bd91e287",
+        "data/products_invoice_536365.csv": "5e36eb711568165738d90e64db79e1ec26f490cf0d29fb5a817fcdc01f90b9ff",
+        "data/review_checklist.csv": "f2dd8041bc1d53ecc0c01bcf84965e608fce5e1c0f14f03b31aa7847bc58eaaa",
+        "data/sales_register.csv": "71eac99122123ff4d5c5795676f788b6226c504b5af76e67c40d0158d8705bcd",
+        "data/source_transactions.csv": "79dfe5816c5cddfb1fd1a523184325b48d98ccf34cc7e32bdf353c87248304e9",
+        "data/temporary_invoice_536366.csv": "5da1fb33b276766a8c7b72f1abd38d567a48680cc134b01c1ed4e1553c4b0d27",
+        "workplace_scenarios.json": "2a828326fc979d21f2d88f85051972886ac35ad13817bb2aa8f442908acea2ff"
+      },
+      "code_path": "AgentWatch.py",
+      "retained_original_run_metadata": true,
+      "test_command": "py AgentWatch.py --test",
+      "run_command": "py AgentWatch.py --open",
+      "git_commit": "69ae74f3269b7b28b07c797c6147c3a127e337df",
+      "tag": "v0.5.0",
+      "import_verification": {
+        "test_count": 30,
+        "exit_code": 0,
+        "evidence_path": "evidence/import_verification/0.5.0.txt"
+      }
+    },
+    {
+      "version": "0.6.0",
+      "recorded_version_date": "2026-11-18",
+      "change": "Choose and run a scenario from local browser controls.",
+      "source_sha256": "2fe18e8b402a96cfc4e7b67eff7890548d3933bfaaa872a7b7bf080a126e13bd",
+      "files_sha256": {
+        "AgentWatch.py": "2fe18e8b402a96cfc4e7b67eff7890548d3933bfaaa872a7b7bf080a126e13bd",
+        "SOURCE.json": "abc1719740b55d6a71f0c7c898610644edddab19f4db2744098c754b06e51067",
+        "data/customer_13047_orders.csv": "646fea088c2a3acc05e973d92c3cf8f3ed2fa2a349e551cbd70227a5d096f1cd",
+        "data/customer_17850_orders.csv": "22ef063d741daa17f6d4df7c629040f40d73b0eb465e088f8a8faceea6879bb6",
+        "data/invoice_536365.csv": "fca4f82a710dd5292e0d5f8c98eaa419447bae2b10be2b213d4ffc53adda23fc",
+        "data/invoice_536366.csv": "5da1fb33b276766a8c7b72f1abd38d567a48680cc134b01c1ed4e1553c4b0d27",
+        "data/invoice_536367.csv": "a8c915f3ad518ea6c70bd0a0d7a6cd768fc083eb49c9990e230d685e053b7f83",
+        "data/invoice_536370.csv": "d721ea1e49ccaebd6da5f37bdd311ba5e964e40461308c7da6d2512ef274bf2d",
+        "data/invoice_536374.csv": "bd4e9c632fc692389185ed67ce92b32379ca0349f0b45377b6fbc871bd91e287",
+        "data/products_invoice_536365.csv": "5e36eb711568165738d90e64db79e1ec26f490cf0d29fb5a817fcdc01f90b9ff",
+        "data/review_checklist.csv": "f2dd8041bc1d53ecc0c01bcf84965e608fce5e1c0f14f03b31aa7847bc58eaaa",
+        "data/sales_register.csv": "71eac99122123ff4d5c5795676f788b6226c504b5af76e67c40d0158d8705bcd",
+        "data/source_transactions.csv": "79dfe5816c5cddfb1fd1a523184325b48d98ccf34cc7e32bdf353c87248304e9",
+        "data/temporary_invoice_536366.csv": "5da1fb33b276766a8c7b72f1abd38d567a48680cc134b01c1ed4e1553c4b0d27",
+        "workplace_scenarios.json": "2a828326fc979d21f2d88f85051972886ac35ad13817bb2aa8f442908acea2ff"
+      },
+      "code_path": "AgentWatch.py",
+      "retained_original_run_metadata": true,
+      "test_command": "py AgentWatch.py --test",
+      "run_command": "py AgentWatch.py --ui",
+      "git_commit": "2fb2bc58f0f8994fd6506f41a745f346be621a89",
+      "tag": "v0.6.0",
+      "import_verification": {
+        "test_count": 34,
+        "exit_code": 0,
+        "evidence_path": "evidence/import_verification/0.6.0.txt"
+      }
+    },
+    {
+      "version": "0.6.1",
+      "recorded_version_date": "2026-11-18",
+      "change": "Explain the deciding rule and preserve the ordered rule checks.",
+      "source_sha256": "867dd336677ffe26399a4607b3b6370dc22f37b3e90c6d7401a9435d3428e24d",
+      "files_sha256": {
+        "AgentWatch.py": "867dd336677ffe26399a4607b3b6370dc22f37b3e90c6d7401a9435d3428e24d",
+        "IMPLEMENTATION_RECORD.md": "e6ba98fb4d1c43663be96685c00b2d3e14854d9eca9cbd92447e5323c5df6df9",
+        "SCENARIOS.md": "ddc48cd55ca4e44abc0f84d4728910c5170cde506412512a29a6cda221810745",
+        "SOURCE.json": "abc1719740b55d6a71f0c7c898610644edddab19f4db2744098c754b06e51067",
+        "data/customer_13047_orders.csv": "646fea088c2a3acc05e973d92c3cf8f3ed2fa2a349e551cbd70227a5d096f1cd",
+        "data/customer_17850_orders.csv": "22ef063d741daa17f6d4df7c629040f40d73b0eb465e088f8a8faceea6879bb6",
+        "data/invoice_536365.csv": "fca4f82a710dd5292e0d5f8c98eaa419447bae2b10be2b213d4ffc53adda23fc",
+        "data/invoice_536366.csv": "5da1fb33b276766a8c7b72f1abd38d567a48680cc134b01c1ed4e1553c4b0d27",
+        "data/invoice_536367.csv": "a8c915f3ad518ea6c70bd0a0d7a6cd768fc083eb49c9990e230d685e053b7f83",
+        "data/invoice_536370.csv": "d721ea1e49ccaebd6da5f37bdd311ba5e964e40461308c7da6d2512ef274bf2d",
+        "data/invoice_536374.csv": "bd4e9c632fc692389185ed67ce92b32379ca0349f0b45377b6fbc871bd91e287",
+        "data/products_invoice_536365.csv": "5e36eb711568165738d90e64db79e1ec26f490cf0d29fb5a817fcdc01f90b9ff",
+        "data/review_checklist.csv": "f2dd8041bc1d53ecc0c01bcf84965e608fce5e1c0f14f03b31aa7847bc58eaaa",
+        "data/sales_register.csv": "71eac99122123ff4d5c5795676f788b6226c504b5af76e67c40d0158d8705bcd",
+        "data/source_transactions.csv": "79dfe5816c5cddfb1fd1a523184325b48d98ccf34cc7e32bdf353c87248304e9",
+        "data/temporary_invoice_536366.csv": "5da1fb33b276766a8c7b72f1abd38d567a48680cc134b01c1ed4e1553c4b0d27",
+        "workplace_scenarios.json": "2a828326fc979d21f2d88f85051972886ac35ad13817bb2aa8f442908acea2ff"
+      },
+      "code_path": "AgentWatch.py",
+      "retained_original_run_metadata": true,
+      "test_command": "py AgentWatch.py --test",
+      "run_command": "py AgentWatch.py --ui",
+      "git_commit": "2c3fbd0920fe439262fe71da564ce63b4241232b",
+      "tag": "v0.6.1",
+      "import_verification": {
+        "test_count": 36,
+        "exit_code": 0,
+        "evidence_path": "evidence/import_verification/0.6.1.txt"
+      }
+    }
+  ],
+  "additional_revisions": [
+    {
+      "version": "0.5.0",
+      "source_sha256": "950733ea0b8f214be19f385d2bf6ca09d64add751cb5320d1e32a8fc68f31ab8",
+      "path": "revisions/v0.5.0/950733ea0b8f",
+      "original_run_started_at_utc": "2026-11-16T06:44:59.853546+00:00",
+      "description": "Retained intermediate source snapshot using the same version number."
+    },
+    {
+      "version": "0.5.0",
+      "source_sha256": "8681c0e136f85b5fdbf8a66b37719b8c659b522894d46aff94b1df497eaa0bce",
+      "path": "revisions/v0.5.0/8681c0e136f8",
+      "original_run_started_at_utc": "2026-11-16T06:38:28.764133+00:00",
+      "description": "Retained intermediate source snapshot using the same version number."
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "version_or_revision": "0.1.0",
+    "checked_at_utc": "2026-11-19T08:02:39.196388+00:00",
+    "command": "python -m unittest discover -s tests -v",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 21
+  },
+  {
+    "version_or_revision": "0.2.0",
+    "checked_at_utc": "2026-11-19T08:02:39.400728+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 21
+  },
+  {
+    "version_or_revision": "0.2.1",
+    "checked_at_utc": "2026-11-19T08:02:39.570357+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 22
+  },
+  {
+    "version_or_revision": "0.3.0",
+    "checked_at_utc": "2026-11-19T08:02:40.332803+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 26
+  },
+  {
+    "version_or_revision": "0.4.0",
+    "checked_at_utc": "2026-11-19T08:02:40.503359+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 26
+  },
+  {
+    "version_or_revision": "0.4.1",
+    "checked_at_utc": "2026-11-19T08:02:40.720631+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 26
+  },
+  {
+    "version_or_revision": "0.5.0",
+    "checked_at_utc": "2026-11-19T08:02:42.436112+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 30
+  },
+  {
+    "version_or_revision": "0.6.0",
+    "checked_at_utc": "2026-11-19T08:02:42.901141+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 34
+  },
+  {
+    "version_or_revision": "0.6.1",
+    "checked_at_utc": "2026-11-19T08:02:43.475024+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 36
+  },
+  {
+    "version_or_revision": "0.5.0 revision 950733ea0b8f",
+    "checked_at_utc": "2026-11-19T08:02:44.400364+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 30
+  },
+  {
+    "version_or_revision": "0.5.0 revision 8681c0e136f8",
+    "checked_at_utc": "2026-11-19T08:02:44.472605+00:00",
+    "command": "python AgentWatch.py --test",
+    "environment": "Assistant archive verification, Linux; not a historical user test run",
+    "exit_code": 0,
+    "test_count": 26
+  }
+]

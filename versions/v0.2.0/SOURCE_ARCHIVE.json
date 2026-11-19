@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "recorded_version_date": "2026-10-29",
+  "change": "Consolidate the prototype and tests into one Python file.",
+  "source_sha256": "23484ad0732877cb44d94a2ddf2e14aab5273d0f066a1a30b3278801c57dcfae",
+  "files_sha256": {
+    "AgentWatch.py": "23484ad0732877cb44d94a2ddf2e14aab5273d0f066a1a30b3278801c57dcfae"
+  },
+  "code_path": "AgentWatch.py",
+  "retained_original_run_metadata": true,
+  "test_command": "py AgentWatch.py --test",
+  "run_command": "py AgentWatch.py"
+}

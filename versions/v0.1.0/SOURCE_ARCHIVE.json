@@ -1,0 +1,20 @@
+{
+  "version": "0.1.0",
+  "recorded_version_date": "2026-10-29",
+  "change": "Multi-file starter with 30 scenarios, tests and evidence exports.",
+  "source_sha256": "0bb1553666a9b709e6d822037340f5475b1b80f360aa5ac9e765b5e8a9060802",
+  "files_sha256": {
+    "CHANGELOG.md": "98ac146d6a0c72fad97c1dceefc704430c77fe059ee5b7ea76c39f87f0e85c2c",
+    "DECISIONS.md": "34b5ac3b66acff8aef543cc25cd7a3b16a4917089869b595fec388e73be82595",
+    "README.md": "0a6bec45d9b86cfbe2b58035ca96b06e9b8d2135003b03ebbd6d68ce048a037a",
+    "VERIFICATION.txt": "70bbae5dd1e862012cf80447cf818bae8f5b386a692525c7949f2ff012f107bf",
+    "agentwatch.py": "0bb1553666a9b709e6d822037340f5475b1b80f360aa5ac9e765b5e8a9060802",
+    "run_simulation.py": "0e8f5684f28059953f0375e37b3cec368853cb8b8969a4289e62c2c12eafe1f6",
+    "scenarios.json": "02e63b60a044759751bf74174bc5e75ffcb68c683ea394b52a2dd6013cbd9341",
+    "tests/test_agentwatch.py": "de979ef11129e50a5396b58f9274c4c256c84efb3b97691bd2c3b11260f05c68"
+  },
+  "code_path": "agentwatch.py",
+  "retained_original_run_metadata": true,
+  "test_command": "py -m unittest discover -s tests -v",
+  "run_command": "py run_simulation.py"
+}

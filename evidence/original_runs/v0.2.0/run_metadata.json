@@ -1,0 +1,27 @@
+{
+  "run_id": "20261029T073928Z_e7dd2461",
+  "prototype_version": "0.2.0",
+  "scenario_suite_version": "embedded-1.0",
+  "started_at_utc": "2026-10-29T07:39:28.199694+00:00",
+  "completed_at_utc": "2026-10-29T07:39:28.203566+00:00",
+  "python_version": "3.12.14",
+  "platform": "Linux",
+  "operator_entered_by_user": "ChatGPT verification environment",
+  "rounds": 1,
+  "scenario_count": 30,
+  "scenario_condition_runs": 90,
+  "random_seed": 42,
+  "strategies": [
+    "unrestricted",
+    "permissions",
+    "combined"
+  ],
+  "approval_response": "approve",
+  "assumed_approval_wait_seconds": 5.0,
+  "timing_note": "Processing is measured; approval delay is an assumption, not an observed human response time.",
+  "agent_mode": "Predefined action requests; no live language model",
+  "provenance": "AI-assisted starter generated in ChatGPT; individual group contributions are not assigned.",
+  "source_snapshot_sha256": {
+    "AgentWatch.py": "23484ad0732877cb44d94a2ddf2e14aab5273d0f066a1a30b3278801c57dcfae"
+  }
+}
