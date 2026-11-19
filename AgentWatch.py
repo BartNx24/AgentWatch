@@ -1,4 +1,4 @@
-"""AgentWatch 0.2.0 - single-file scenario simulation
+"""AgentWatch 0.2.1 - single-file scenario simulation
 
 SAVE AND RUN
     Save this file as AgentWatch.py in a folder you can write to.
@@ -46,6 +46,9 @@ VERSION RECORD
     0.1.0 - 29 October 2026: initial AI-assisted multi-file prototype.
     0.2.0 - 29 October 2026: consolidated into this standalone file, including
             scenarios and tests; source snapshots now retain this script.
+    0.2.1 - 29 October 2026: explicitly close SQLite connections in exports and
+            test verification so Windows can clean up temporary databases.
+            Add a regression check for closure on success and failure.
     Created with ChatGPT assistance. Individual student contributions remain
     to be recorded against the work they actually complete and validate.
 """
@@ -56,6 +59,7 @@ import copy
 import json
 import math
 from collections import Counter
+from contextlib import closing
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter_ns
@@ -72,6 +76,7 @@ from uuid import uuid4
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SCRIPT_PATH = Path(__file__).resolve()
 ROOT = SCRIPT_PATH.parent
@@ -443,7 +448,7 @@ SCENARIO_SUITE = {'suite_version': '1.0',
 
 # region Policy decisions and mock execution
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 
 STRATEGIES = ("unrestricted", "permissions", "combined")
@@ -736,7 +741,9 @@ def write_csv(path, rows):
 
 
 def save_database(path, metadata, rows, summary):
-    with sqlite3.connect(path) as connection:
+    # The inner connection context commits or rolls back; closing releases
+    # the database handle on both success and failure, including on Windows.
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.execute("CREATE TABLE runs (run_id TEXT PRIMARY KEY, metadata_json TEXT NOT NULL)")
         connection.execute("INSERT INTO runs VALUES (?, ?)", (metadata["run_id"], json.dumps(metadata)))
         connection.execute("""CREATE TABLE trials (
@@ -1061,6 +1068,36 @@ class PolicyTests(unittest.TestCase):
 
 
 class ExportTests(unittest.TestCase):
+    def test_database_export_always_closes_its_connection(self):
+        original_connect = sqlite3.connect
+        for invalid_metadata in (False, True):
+            with self.subTest(invalid_metadata=invalid_metadata):
+                opened = []
+
+                def record_connection(*args, **kwargs):
+                    connection = original_connect(*args, **kwargs)
+                    opened.append(connection)
+                    return connection
+
+                with tempfile.TemporaryDirectory() as temporary:
+                    metadata = {"run_id": "connection-cleanup-regression"}
+                    if invalid_metadata:
+                        metadata["not_json_serializable"] = {"example"}
+                    try:
+                        with patch.object(sqlite3, "connect", side_effect=record_connection):
+                            if invalid_metadata:
+                                with self.assertRaises(TypeError):
+                                    save_database(Path(temporary) / "results.sqlite", metadata, [], [])
+                            else:
+                                save_database(Path(temporary) / "results.sqlite", metadata, [], [])
+                        self.assertEqual(len(opened), 1)
+                        with self.assertRaises(sqlite3.ProgrammingError):
+                            opened[0].execute("SELECT 1")
+                    finally:
+                        # Release a leaked handle even when this regression fails.
+                        for connection in opened:
+                            connection.close()
+
     def test_cli_exports_two_complete_rounds_and_verified_source_snapshot(self):
         with tempfile.TemporaryDirectory() as temporary:
             # Run a renamed copy from an otherwise empty folder to prove that
@@ -1083,10 +1120,15 @@ class ExportTests(unittest.TestCase):
                 rows = list(csv.DictReader(handle))
             self.assertEqual(len(rows), 180)
             self.assertEqual(len({(r["round"], r["scenario_id"], r["strategy"]) for r in rows}), 180)
-            with sqlite3.connect(folder / "results.sqlite") as connection:
+            with closing(sqlite3.connect(folder / "results.sqlite")) as connection:
                 self.assertEqual(connection.execute("SELECT COUNT(*) FROM trials").fetchone()[0], 180)
                 self.assertEqual(connection.execute("SELECT COUNT(*) FROM summaries").fetchone()[0], 3)
                 self.assertEqual(connection.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+            try:
+                with self.assertRaises(sqlite3.ProgrammingError):
+                    connection.execute("SELECT 1")
+            finally:
+                connection.close()
             for name, digest in metadata["source_snapshot_sha256"].items():
                 self.assertEqual(hashlib.sha256((folder / "source_snapshot" / name).read_bytes()).hexdigest(), digest)
             report = (folder / "report.html").read_text()
