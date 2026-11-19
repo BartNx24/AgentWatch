@@ -1,11 +1,11 @@
-# AgentWatch v0.4.1
+# AgentWatch v0.5.0
 
-Simplify the results into a plain-language comparison.
+Use real invoice records and retain before-and-after file evidence.
 
-Recorded version date: 2026-11-10. Imported into Git on 2026-11-19.
+Recorded version date: 2026-11-16. Imported into Git on 2026-11-19.
 
 ```powershell
-py AgentWatch.py --scenarios uci_wine_scenarios.json --open
+py AgentWatch.py --open
 ```
 
 Automated checks:

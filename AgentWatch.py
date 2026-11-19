@@ -1,4 +1,4 @@
-"""AgentWatch 0.4.1 - single-file scenario simulation
+"""AgentWatch 0.5.0 - business-file scenario simulation
 
 SAVE AND RUN
     Save this file as AgentWatch.py in a folder you can write to.
@@ -7,9 +7,10 @@ SAVE AND RUN
 
         py AgentWatch.py --open
 
-    Use the published lab measurements supplied in this folder:
+    The supplied workplace_scenarios.json is selected automatically.
+    It links 30 test cases to real retail invoices. To refuse approvals use:
 
-        py AgentWatch.py --scenarios uci_wine_scenarios.json --approval approve --open
+        py AgentWatch.py --approval deny --open
 
     Run all built-in automated checks:
 
@@ -34,7 +35,9 @@ OPTIONAL RUNS
     py AgentWatch.py --help
 
 HOW TO EDIT
-    SCENARIO_SUITE below contains the fictional resources and all 30 scenarios.
+    workplace_scenarios.json defines the business requests, grants and tasks.
+    The data folder holds the source extract and working files. SCENARIO_SUITE
+    below retains the original fixtures used by the automated policy checks.
     The policy functions, mock executor, report generator and tests follow it.
     Expected labels are used for evaluation, not for authorization decisions.
     Keep five scenarios in each category for the current balanced protocol.
@@ -61,6 +64,8 @@ VERSION RECORD
             an optional suite based on published lab measurements.
     0.4.1 - 10 November 2026: show the comparison in plain language and put
             run details and downloads in one expandable section.
+    0.5.0 - 16 November 2026: link business cases to real invoice records,
+            show scenario details and retain before and after file evidence.
     Created with ChatGPT assistance. Individual student contributions remain
     to be recorded against the work they actually complete and validate.
 """
@@ -73,6 +78,7 @@ import json
 import math
 import os
 from collections import Counter
+from decimal import Decimal
 from contextlib import closing, redirect_stdout
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -463,7 +469,7 @@ SCENARIO_SUITE = {'suite_version': '1.0',
 
 # region Policy decisions and mock execution
 
-VERSION = "0.4.1"
+VERSION = "0.5.0"
 
 
 STRATEGIES = ("unrestricted", "permissions", "combined")
@@ -481,9 +487,74 @@ CATEGORIES = (
 HIGH_RISK_ACTIONS = frozenset({"delete", "share", "export"})
 
 
+def dataset_file(suite_path: Path, relative_name: str) -> Path:
+    base = suite_path.parent.resolve()
+    relative = Path(relative_name)
+    target = (base / relative).resolve()
+    if relative.is_absolute() or not target.is_relative_to(base) or target.suffix.lower() not in {".csv", ".txt"}:
+        raise ValueError("Companion data must be a CSV or text file inside the dataset folder")
+    return target
+
+
+def business_summary(content: str) -> str:
+    records = list(csv.DictReader(io.StringIO(content)))
+    if not records:
+        return f"Read {len(content)} characters from the working file."
+    if {"Quantity", "UnitPrice"} <= records[0].keys():
+        units = sum(Decimal(record["Quantity"]) for record in records)
+        total = sum(Decimal(record["Quantity"]) * Decimal(record["UnitPrice"]) for record in records)
+        return f"{len(records)} invoice lines, {units:g} units, GBP {total:.2f}."
+    if "TotalGBP" in records[0]:
+        total = sum(Decimal(record["TotalGBP"]) for record in records)
+        return f"{len(records)} invoices, GBP {total:.2f} in the selected records."
+    return f"{len(records)} data rows in the working file."
+
+
+def write_case_files(folder: Path, rows: list[dict]) -> None:
+    destination = folder / "case_files"
+    destination.mkdir()
+    for row in rows:
+        prefix = f"{row['trial_index']:04d}"
+        suffix = ".csv" if "," in row["file_before"].partition("\n")[0] else ".txt"
+        row["before_file"] = f"case_files/{prefix}_before{suffix}"
+        (folder / row["before_file"]).write_text(row["file_before"], encoding="utf-8")
+        row["after_file"] = ""
+        if row["file_exists_after"]:
+            row["after_file"] = f"case_files/{prefix}_after{suffix}"
+            (folder / row["after_file"]).write_text(row["file_after"], encoding="utf-8")
+        row["staged_file"] = ""
+        if row["executed"] and row["action"] in {"share", "export"}:
+            row["staged_file"] = f"case_files/{prefix}_staged{suffix}"
+            (folder / row["staged_file"]).write_text(row["file_before"], encoding="utf-8")
+        row["execution_record"] = f"case_files/{prefix}_execution.json"
+        record = {
+            "scenario": row["scenario_id"], "task": row["task"], "strategy": row["strategy"],
+            "action": row["action"], "file": row["file_name"], "recipient": row["recipient"],
+            "initial_decision": row["actual_initial_decision"], "approval": row["approval_status"],
+            "executed": row["executed"], "outcome": row["outcome"],
+            "workspace": "Isolated in-memory working copy with the captured files saved alongside this record",
+            "file_exists_after": row["file_exists_after"], "name_after": row["name_after"],
+            "tags_after": json.loads(row["tags_after"]), "source": json.loads(row["source_details"]),
+            "before_sha256": hashlib.sha256(row["file_before"].encode()).hexdigest(),
+            "after_sha256": hashlib.sha256(row["file_after"].encode()).hexdigest() if row["file_exists_after"] else None,
+            "before_file": row["before_file"], "after_file": row["after_file"], "staged_file": row["staged_file"],
+        }
+        (folder / row["execution_record"]).write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
 def load_suite(path: Path | None = None) -> tuple[dict, list[dict]]:
     data = copy.deepcopy(SCENARIO_SUITE) if path is None else json.loads(path.read_text(encoding="utf-8"))
     resources, scenarios = data["resources"], data["scenarios"]
+    for resource in resources.values():
+        if "data_file" in resource:
+            if path is None:
+                raise ValueError("A dataset path is required for companion data files")
+            content = dataset_file(path, resource["data_file"]).read_bytes()
+            if hashlib.sha256(content).hexdigest() != resource["data_sha256"]:
+                raise ValueError(f"Data file changed from its recorded source: {resource['data_file']}")
+            resource["content"] = content.decode("utf-8-sig")
+        if not set(resource.get("high_risk_actions", [])) <= ACTIONS:
+            raise ValueError("Unknown high-risk action in resource policy")
     if not isinstance(resources, dict) or not resources:
         raise ValueError("resources must be a nonempty object")
     for resource in resources.values():
@@ -537,7 +608,7 @@ def task_appropriate(scenario: dict) -> bool:
 def classify_risk(action: dict, resources: dict) -> str:
     if action["kind"] not in ACTIONS or action["resource_id"] not in resources:
         raise ValueError("Cannot classify an unknown action or resource")
-    if action["kind"] in HIGH_RISK_ACTIONS:
+    if action["kind"] in HIGH_RISK_ACTIONS or action["kind"] in resources[action["resource_id"]].get("high_risk_actions", []):
         return "high"
     if resources[action["resource_id"]]["classification"] == "confidential":
         return "high"
@@ -581,30 +652,54 @@ class MockWorkspace:
         kind, resource_id = action["kind"], action["resource_id"]
         resource = self.files[resource_id]
         payload = action.get("payload", {})
+        name = resource.get("file_name", resource["name"])
         if kind == "read":
-            outcome = f"Read {len(resource['content'])} characters from the working copy"
+            outcome = f"Read {name}. {business_summary(resource['content'])}"
         elif kind == "list":
-            outcome = f"Listed mock resource {resource_id}"
+            records = list(csv.DictReader(io.StringIO(resource["content"])))
+            invoices = sorted({record["InvoiceNo"] for record in records if "InvoiceNo" in record})
+            outcome = "Listed invoices " + ", ".join(invoices) if invoices else f"Listed {name}."
         elif kind == "tag":
-            resource.setdefault("tags", []).append(payload.get("tag", "reviewed"))
-            outcome = "Added a tag to the mock resource"
+            tag = payload.get("tag", "reviewed")
+            resource.setdefault("tags", []).append(tag)
+            outcome = f"Marked the working file as {tag}."
         elif kind == "rename":
-            resource["name"] = payload.get("name", "renamed_mock_record")
-            outcome = "Renamed the mock resource"
+            resource["name"] = payload.get("name", "renamed_working_file")
+            outcome = f"Renamed the working file to {resource['name']}."
         elif kind == "update":
-            resource["content"] = payload.get("content", "Fictional approved update")
-            outcome = "Updated the mock resource"
+            if "changes" in payload:
+                reader = csv.DictReader(io.StringIO(resource["content"]))
+                records = list(reader)
+                fields = list(reader.fieldnames or [])
+                changes, selected = payload["changes"], payload.get("where", {})
+                changed = 0
+                for record in records:
+                    if all(record.get(key) == str(value) for key, value in selected.items()):
+                        record.update({key: str(value) for key, value in changes.items()})
+                        changed += 1
+                if not changed:
+                    raise ValueError("The requested update matched no data rows")
+                fields.extend(key for key in changes if key not in fields)
+                stream = io.StringIO(newline="")
+                writer = csv.DictWriter(stream, fieldnames=fields, lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(records)
+                resource["content"] = stream.getvalue()
+                outcome = f"Updated {', '.join(changes)} on {changed} data rows. {business_summary(resource['content'])}"
+            else:
+                resource["content"] = payload.get("content", "Approved working-copy update")
+                outcome = f"Updated {name}."
         elif kind == "delete":
             del self.files[resource_id]
-            outcome = "Deleted the in-memory mock record only"
+            outcome = f"Removed {name} from this trial’s working files."
         elif kind == "share":
             self.sent_items.append({"resource_id": resource_id, "recipient": action["recipient"]})
-            outcome = "Recorded a simulated share; no message was sent"
+            outcome = f"Staged a copy of {name} for the test destination {action['recipient']}."
         elif kind == "export":
             self.exported_items.append({"resource_id": resource_id, "recipient": action["recipient"]})
-            outcome = "Recorded a simulated export; no external transfer occurred"
+            outcome = f"Exported a working copy of {name} to the test destination {action['recipient']}."
         else:
-            raise ValueError("Unsupported mock action")
+            raise ValueError("Unsupported action")
         self.execution_count += 1
         return outcome
 
@@ -621,6 +716,7 @@ class Attempt:
     measured_processing_ms: float = 0.0
     simulated_approval_wait_seconds: float = 0.0
     events: list[str] = field(default_factory=list)
+    resource_before: dict = field(default_factory=dict)
 
     def execute(self) -> None:
         if self.executed:
@@ -653,6 +749,22 @@ class Attempt:
         truth = self.scenario["ground_truth"]
         expected = self.scenario["expected_decisions"][self.strategy]
         return {
+            "scenario_title": self.scenario.get("title", self.scenario["task"]["description"]),
+            "role": self.scenario.get("role", "Test account"),
+            "resource_name": self.resource_before.get("name", self.scenario["action"]["resource_id"]),
+            "file_name": self.resource_before.get("file_name", self.scenario["action"]["resource_id"]),
+            "classification": self.resource_before.get("classification", ""),
+            "source_details": json.dumps(self.resource_before.get("provenance", {})),
+            "file_before": self.resource_before.get("content", ""),
+            "file_after": self.workspace.files.get(self.scenario["action"]["resource_id"], {}).get("content", ""),
+            "file_exists_after": self.scenario["action"]["resource_id"] in self.workspace.files,
+            "name_after": self.workspace.files.get(self.scenario["action"]["resource_id"], {}).get("name", ""),
+            "tags_after": json.dumps(self.workspace.files.get(self.scenario["action"]["resource_id"], {}).get("tags", [])),
+            "requested_payload": json.dumps(self.scenario["action"].get("payload", {})),
+            "account_grants": json.dumps(self.scenario["permissions"].get(self.scenario["action"]["resource_id"], [])),
+            "allowed_task_actions": json.dumps(self.scenario["task"]["allowed_actions"]),
+            "allowed_task_resources": json.dumps(self.scenario["task"]["allowed_resources"]),
+            "allowed_task_recipients": json.dumps(self.scenario["task"]["allowed_recipients"]),
             "trial_index": trial_index, "round": round_number,
             "scenario_id": self.scenario["id"], "category": self.scenario["category"],
             "task": self.scenario["task"]["description"],
@@ -682,7 +794,8 @@ class Attempt:
 def begin_attempt(scenario: dict, strategy: str, resources: dict) -> Attempt:
     start = perf_counter_ns()
     decision = decide(scenario, strategy, resources)
-    attempt = Attempt(copy.deepcopy(scenario), strategy, decision, MockWorkspace(resources))
+    attempt = Attempt(copy.deepcopy(scenario), strategy, decision, MockWorkspace(resources),
+                      resource_before=copy.deepcopy(resources[scenario["action"]["resource_id"]]))
     attempt.events.extend(["action_proposed", "decision_" + decision.status])
     if decision.status == "allow":
         attempt.execute()
@@ -777,7 +890,7 @@ def save_database(path, metadata, rows, summary):
 
 
 def snapshot_sources(destination, suite_path=None):
-    """Retain this exact standalone script and any optional external suite."""
+    """Retain the script, suite and companion data used in this run."""
     destination.mkdir(parents=True, exist_ok=True)
     content = SCRIPT_PATH.read_bytes()
     (destination / SCRIPT_PATH.name).write_bytes(content)
@@ -786,10 +899,22 @@ def snapshot_sources(destination, suite_path=None):
         content = suite_path.read_bytes()
         (destination / "external_scenarios.json").write_bytes(content)
         hashes["external_scenarios.json"] = hashlib.sha256(content).hexdigest()
+    if suite_path is not None:
+        data = json.loads(suite_path.read_text(encoding="utf-8"))
+        names = {resource["data_file"] for resource in data["resources"].values() if "data_file" in resource}
+        source_name = data.get("dataset_provenance", {}).get("source_file_in_package")
+        if source_name:
+            names.add(source_name)
+        for name in sorted(names):
+            content = dataset_file(suite_path, name).read_bytes()
+            target = destination / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+            hashes[name] = hashlib.sha256(content).hexdigest()
     return hashes
 
 
-def write_report(path, metadata, rows, summary):
+def write_overview(path, metadata, rows, summary):
     css = """
     :root {color-scheme:light; font-family:system-ui,"Segoe UI",sans-serif; color:#192d2b; background:#f4f7f6}
     * {box-sizing:border-box}
@@ -917,6 +1042,189 @@ def write_report(path, metadata, rows, summary):
     path.write_text("\n".join(pieces), encoding="utf-8")
 
 
+def data_preview(content: str) -> str:
+    records = list(csv.DictReader(io.StringIO(content)))
+    if not records:
+        return "<pre>" + html.escape(content) + "</pre>"
+    preferred = ("InvoiceNo", "StockCode", "Description", "Quantity", "UnitPrice", "CustomerID", "Country", "ReviewStatus", "TotalGBP", "SourceRow")
+    fields = [field for field in preferred if field in records[0]]
+    if not fields:
+        fields = list(records[0])
+    labels = {"InvoiceNo": "Invoice", "StockCode": "Product code", "Description": "Item", "Quantity": "Quantity", "UnitPrice": "Unit price GBP", "CustomerID": "Customer ID", "ReviewStatus": "Review status", "TotalGBP": "Total GBP", "SourceRow": "Excel row"}
+    header = "".join("<th scope='col'>" + html.escape(labels.get(field, field)) + "</th>" for field in fields)
+    body = []
+    for record in records[:5]:
+        body.append("<tr>" + "".join("<td>" + html.escape(record.get(field, "")) + "</td>" for field in fields) + "</tr>")
+    note = f"Showing {min(5, len(records))} of {len(records)} rows. The file link contains every row used for this request."
+    return f"<div class='data-table'><table><thead><tr>{header}</tr></thead><tbody>{''.join(body)}</tbody></table></div><p class='note'>{note}</p>"
+
+
+def scenario_evidence(rows: list[dict]) -> str:
+    grouped = {}
+    for row in rows:
+        grouped.setdefault((row["round"], row["scenario_id"]), []).append(row)
+    category_order = {prefix: index for index, prefix in enumerate(("AL", "AH", "UL", "UH", "IL", "IH"))}
+    keys = sorted(grouped, key=lambda key: (key[0], category_order.get(key[1][:2], 6), key[1]))
+    active = next((index for index, key in enumerate(keys) if key[1] == "IH02"), 0)
+    options, panels = [], []
+    strategy_names = {"unrestricted": "No checks", "permissions": "File permissions only", "combined": "Full safeguards"}
+    for index, key in enumerate(keys):
+        attempts = sorted(grouped[key], key=lambda row: STRATEGIES.index(row["strategy"]))
+        first = attempts[0]
+        esc = html.escape
+        title = esc(first["scenario_title"])
+        identifier = esc(first["scenario_id"])
+        selected = " selected" if index == active else ""
+        options.append(f"<option value='{index}'{selected}>{identifier} · {title} · round {key[0]}</option>")
+        source = json.loads(first["source_details"])
+        source_rows = source.get("source_rows", [])
+        if source_rows and source_rows == list(range(source_rows[0], source_rows[-1] + 1)):
+            row_label = f"Excel rows {source_rows[0]}–{source_rows[-1]}"
+        else:
+            row_label = f"{len(source_rows)} Excel row references in the data file"
+        source_url = source.get("source_url", "")
+        source_link = ""
+        if source_url.startswith(("https://", "http://")):
+            source_link = f"<a href='{esc(source_url, quote=True)}' target='_blank' rel='noopener'>Original dataset</a>"
+        grants = ", ".join(json.loads(first["account_grants"])) or "No permission for this file"
+        task_actions = ", ".join(json.loads(first["allowed_task_actions"]))
+        permitted_files = ", ".join(value.replace("_", " ") for value in json.loads(first["allowed_task_resources"]))
+        permitted_recipients = ", ".join(json.loads(first["allowed_task_recipients"])) or "No sharing destination assigned"
+        recipient = f"<p><strong>Requested destination</strong> {esc(first['recipient'])}</p>" if first["recipient"] else ""
+        payload = json.loads(first["requested_payload"])
+        requested_change = ""
+        if "changes" in payload:
+            changes = ", ".join(f"{field} → {value}" for field, value in payload["changes"].items())
+            selected_rows = ", ".join(f"{field} {value}" for field, value in payload.get("where", {}).items()) or "all rows"
+            requested_change = f"<p><strong>Requested change</strong> {esc(changes)} for {esc(selected_rows)}</p>"
+        elif "name" in payload:
+            requested_change = f"<p><strong>New file name</strong> {esc(payload['name'])}</p>"
+        elif "tag" in payload:
+            requested_change = f"<p><strong>Requested tag</strong> {esc(payload['tag'])}</p>"
+        result_cards = []
+        for result in attempts:
+            status = "Completed"
+            status_class = "completed"
+            if result["actual_initial_decision"] == "block":
+                status, status_class = "Blocked", "blocked"
+            elif result["approval_status"] == "denied":
+                status, status_class = "Approval refused", "refused"
+            elif result["approval_status"] == "approved":
+                status = "Completed after approval"
+            file_state = "Working file present" if result["file_exists_after"] else "Working file removed"
+            download_links = [f"<a href='{esc(result['execution_record'])}'>Execution record</a>"]
+            if result["after_file"]:
+                download_links.append(f"<a href='{esc(result['after_file'])}'>File after the request</a>")
+            if result["staged_file"]:
+                download_links.append(f"<a href='{esc(result['staged_file'])}'>Staged copy</a>")
+            result_cards.append(f"""<article class="scenario-result">
+                <h4>{strategy_names[result['strategy']]}</h4>
+                <p class="decision {status_class}">{status}</p>
+                <p>{esc(result['reason'])}</p>
+                <p class="observed">{esc(result['outcome'])}</p>
+                <p class="file-state">{file_state}</p>
+                <p class="case-links">{' · '.join(download_links)}</p>
+            </article>""")
+        hidden = " hidden" if index != active else ""
+        panels.append(f"""<article id="case-{index}" class="scenario-panel"{hidden}>
+            <p class="eyebrow">Scenario {identifier} · Round {key[0]}</p>
+            <h3>{title}</h3>
+            <div class="request-grid">
+                <div><span class="field-label">Assigned task</span><p>{esc(first['task'])}</p></div>
+                <div><span class="field-label">Attempted action</span><p class="action-text">{esc(first['action'].capitalize())} <strong>{esc(first['file_name'])}</strong></p>{recipient}{requested_change}</div>
+            </div>
+            <div class="policy-line"><p><strong>Account role</strong> {esc(first['role'])}</p><p><strong>Account permissions</strong> {esc(grants)}</p><p><strong>Task allows</strong> {esc(task_actions)} on {esc(permitted_files)}</p><p><strong>Allowed destination</strong> {esc(permitted_recipients)}</p></div>
+            <h4>Data used in this request</h4>
+            <p>{esc(first['resource_name'])} · {esc(first['classification'])} workspace label</p>
+            <p class="data-summary">{esc(business_summary(first['file_before']))}</p>
+            <p class="source-line">{esc(source.get('dataset', 'Built-in test fixture'))} · {esc(row_label)} · {source_link}</p>
+            <p class="note">{esc(source.get('preparation', ''))}</p>
+            {data_preview(first['file_before'])}
+            <p class="case-links"><a href="{esc(first['before_file'])}">Open the full data file before the request</a></p>
+            <h4 class="result-heading">What happened under each setting</h4>
+            <div class="scenario-results">{''.join(result_cards)}</div>
+        </article>""")
+    return f"""<section class="case-study" aria-labelledby="case-heading">
+        <h2 id="case-heading">See the scenario and the data</h2>
+        <p class="intro">Review an actual test result, the file it used and the reason for each decision.</p>
+        <label class="field-label" for="scenario-select">Choose a tested scenario</label>
+        <div class="case-controls"><select id="scenario-select">{''.join(options)}</select><button id="previous-case" type="button" aria-label="Previous scenario">Previous</button><button id="next-case" type="button" aria-label="Next scenario">Next</button></div>
+        {''.join(panels)}
+        <p class="note scope-note">The records are published business transactions. The tasks, account permissions, workspace labels and approval responses define the controlled experiment. File actions use isolated working copies. Shared and exported files are saved as staged copies for inspection.</p>
+    </section>"""
+
+
+def write_report(path, metadata, rows, summary):
+    write_overview(path, metadata, rows, summary)
+    page = path.read_text(encoding="utf-8")
+    styles = """
+    .case-study {margin-bottom:36px}
+    .case-controls {display:flex;gap:8px;margin:8px 0 20px;align-items:stretch}
+    select,button {font:inherit;border:1px solid #aabeb5;border-radius:8px;padding:11px;background:white;color:#192d2b}
+    select {min-width:0;flex:1}
+    button {cursor:pointer;font-weight:600}
+    button:hover {background:#e0f1e8}
+    button:disabled {opacity:.45;cursor:default}
+    .field-label {display:block;font-size:.85rem;font-weight:700;color:#386054;margin-top:16px;margin-bottom:5px}
+    .scenario-panel {background:white;border:1px solid #cbded3;border-radius:16px;padding:24px}
+    .scenario-panel h3 {font-size:1.55rem;margin:8px 0 16px}
+    .request-grid {display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .request-grid .field-label {margin-top:0}
+    .action-text {overflow-wrap:anywhere}
+    .policy-line {border-top:1px solid #dce7e1;border-bottom:1px solid #dce7e1;padding:12px 0;margin:18px 0;font-size:.9rem;color:#3e5650}
+    .policy-line p+p {margin-top:4px}
+    h4 {font-size:1rem;margin:0 0 8px}
+    .data-summary {font-weight:700;margin-top:6px}
+    .source-line {font-size:.86rem;margin:7px 0;color:#475d58}
+    .data-table {overflow-x:auto;margin:14px 0 0}
+    .data-table table {border-collapse:collapse;font-size:.82rem;min-width:620px;width:100%}
+    .data-table th,.data-table td {padding:9px 10px;text-align:left;border-bottom:1px solid #dce7e1;vertical-align:top}
+    .data-table th {background:#f0f6f2}
+    .data-table td:nth-child(2) {max-width:230px}
+    .scenario-panel .note {margin-top:9px}
+    .result-heading {margin-top:25px}
+    .scenario-results {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .scenario-result {background:#f5f8f6;border-radius:10px;padding:15px;min-width:0;overflow-wrap:anywhere}
+    .scenario-result p {font-size:.9rem;margin-top:9px}
+    .decision {display:inline-block;padding:4px 8px;border-radius:6px;font-weight:700}
+    .completed {background:#dff0e5;color:#1b543a}
+    .blocked {background:#e2eaf8;color:#294c80}
+    .refused {background:#fff0d1;color:#69490c}
+    .observed,.file-state {color:#3e5650}
+    .case-links {font-size:.85rem;margin-top:12px;overflow-wrap:anywhere}
+    .scope-note {font-size:.85rem}
+    .scenario-panel[hidden] {display:none}
+    @media(max-width:800px){.request-grid,.scenario-results{grid-template-columns:1fr}.scenario-panel{padding:17px}.case-controls{flex-wrap:wrap}.case-controls select{flex-basis:100%}}
+    """
+    script = """<script>
+    const choice = document.getElementById('scenario-select');
+    const panels = Array.from(document.querySelectorAll('.scenario-panel'));
+    const previous = document.getElementById('previous-case');
+    const next = document.getElementById('next-case');
+    function showScenario() {
+        const selected = Number(choice.value);
+        panels.forEach((panel, index) => { panel.hidden = index !== selected; });
+        previous.disabled = selected === 0;
+        next.disabled = selected === panels.length - 1;
+    }
+    choice.addEventListener('change', showScenario);
+    previous.addEventListener('click', () => { choice.selectedIndex -= 1; showScenario(); });
+    next.addEventListener('click', () => { choice.selectedIndex += 1; showScenario(); });
+    showScenario();
+    </script>"""
+    page = page.replace("</style>", styles + "</style>", 1)
+    section = '<section aria-labelledby="results-heading">'
+    if len({(row["round"], row["scenario_id"]) for row in rows}) == 1:
+        start = page.index(section)
+        end = page.index('<details class="details">', start)
+        page = page[:start] + scenario_evidence(rows) + page[end:]
+        page = page.replace('same 1 cases.', 'same 1 case.')
+    else:
+        page = page.replace(section, scenario_evidence(rows) + section, 1)
+    page = page.replace("</body>", script + "</body>", 1)
+    path.write_text(page, encoding="utf-8")
+
+
 def open_generated_report(path):
     """Open this run's exact report, without selecting any earlier result."""
     report_path = path.resolve()
@@ -934,6 +1242,7 @@ def main(argv=None):
     parser.add_argument("--version", action="version", version=f"AgentWatch {VERSION}")
     parser.add_argument("--scenarios", type=Path, default=None, help="Optional external suite; the 30 embedded scenarios are used by default")
     parser.add_argument("--test", action="store_true", help="Run the built-in automated checks")
+    parser.add_argument("--scenario", help="Run a single scenario, for example IH02")
     parser.add_argument("--open", dest="open_report", action="store_true", help="Open the exact report generated by this run")
     parser.add_argument("--output", type=Path, default=ROOT / "results", help="Parent folder for uniquely named runs")
     parser.add_argument("--rounds", type=positive_int, default=1)
@@ -944,7 +1253,13 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.test:
         return run_self_tests()
+    if args.scenarios is None and (ROOT / "workplace_scenarios.json").is_file():
+        args.scenarios = ROOT / "workplace_scenarios.json"
     resources, scenarios = load_suite(args.scenarios)
+    if args.scenario:
+        scenarios = [scenario for scenario in scenarios if scenario["id"] == args.scenario]
+        if not scenarios:
+            raise ValueError(f"Unknown scenario {args.scenario}. Choose an ID from workplace_scenarios.json.")
     started = datetime.now(timezone.utc)
     run_id = started.strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8]
     folder = args.output.resolve() / run_id
@@ -974,6 +1289,7 @@ def main(argv=None):
         "provenance": "AI-assisted starter generated in ChatGPT; individual group contributions are not assigned.",
         "source_snapshot_sha256": hashes,
     }
+    write_case_files(folder, rows)
     write_csv(folder / "trials.csv", rows)
     write_csv(folder / "summary.csv", summary)
     (folder / "run_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
@@ -981,10 +1297,15 @@ def main(argv=None):
     report_path = folder / "report.html"
     write_report(report_path, metadata, rows, summary)
     matches = sum(r["decision_matches_expectation"] and r["risk_matches_expectation"] for r in rows)
-    print(f"AgentWatch {VERSION} | {len(scenarios)} scenarios x 3 strategies x {args.rounds} round(s) = {len(rows)} runs")
+    case_word = "scenario" if len(scenarios) == 1 else "scenarios"
+    print(f"AgentWatch {VERSION} | {len(scenarios)} {case_word} x 3 strategies x {args.rounds} round(s) = {len(rows)} runs")
     print(f"Scripted approval response: {args.approval.upper()}")
     combined = next(row for row in summary if row["strategy"] == "combined")
-    print(f"Combined legitimate tasks completed: {combined['legitimate_tasks_completed']}/{combined['legitimate_attempts']} | Simulated approval refusals: {combined['simulated_approval_denials']}")
+    if combined["legitimate_attempts"]:
+        print(f"Combined legitimate tasks completed: {combined['legitimate_tasks_completed']}/{combined['legitimate_attempts']} | Simulated approval refusals: {combined['simulated_approval_denials']}")
+    else:
+        blocked = combined["unauthorized_actions_blocked"] + combined["inappropriate_actions_blocked"]
+        print(f"Full safeguards blocked {blocked} of {combined['attempts']} requests outside the permitted task or account access.")
     print(f"Initial decisions and risk labels matching expectations: {matches}/{len(rows)}")
     print(f"Scenario dataset: {metadata['scenario_input']}")
     print("Approval responses are scripted. Estimated totals use the assumed waiting time.")
@@ -1288,12 +1609,82 @@ class ExportTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("finite nonnegative", result.stderr)
 
+
+@unittest.skipUnless((ROOT / "workplace_scenarios.json").is_file(), "Companion workplace dataset is required")
+class WorkplaceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.resources, cls.scenarios = load_suite(ROOT / "workplace_scenarios.json")
+        cls.by_id = {scenario["id"]: scenario for scenario in cls.scenarios}
+
+    def test_invoice_values_and_source_rows_match_the_retained_extract(self):
+        source = list(csv.DictReader(io.StringIO((ROOT / "data/source_transactions.csv").read_text(encoding="utf-8"))))
+        invoice = list(csv.DictReader(io.StringIO(self.resources["invoice_536365"]["content"])))
+        self.assertEqual(invoice, [row for row in source if row["InvoiceNo"] == "536365"])
+        self.assertEqual([int(row["SourceRow"]) for row in invoice], list(range(2, 9)))
+        self.assertEqual(len(invoice), 7)
+        total = sum(Decimal(row["Quantity"]) * Decimal(row["UnitPrice"]) for row in invoice)
+        self.assertEqual(total, Decimal("139.12"))
+        self.assertEqual(len(source), 66)
+
+    def test_workplace_labels_match_independent_permission_scope_and_risk_checks(self):
+        for scenario in self.scenarios:
+            with self.subTest(scenario=scenario["id"]):
+                self.assertEqual(technical_permission(scenario), scenario["ground_truth"]["technical_authorized"])
+                self.assertEqual(task_appropriate(scenario), scenario["ground_truth"]["context_appropriate"])
+                self.assertEqual(classify_risk(scenario["action"], self.resources), scenario["ground_truth"]["risk"])
+                for strategy in STRATEGIES:
+                    self.assertEqual(decide(scenario, strategy, self.resources).status, scenario["expected_decisions"][strategy])
+
+    def test_delete_price_change_and_export_retain_inspectable_working_file_evidence(self):
+        source_before = (ROOT / "data/source_transactions.csv").read_bytes()
+        rows = []
+        for identifier in ("IH02", "IH03", "IH04"):
+            for strategy in STRATEGIES:
+                attempt = begin_attempt(self.by_id[identifier], strategy, self.resources)
+                rows.append(attempt.as_row(1, len(rows) + 1))
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            write_case_files(folder, rows)
+            deleted = next(row for row in rows if row["scenario_id"] == "IH02" and row["strategy"] == "unrestricted")
+            protected = next(row for row in rows if row["scenario_id"] == "IH02" and row["strategy"] == "combined")
+            self.assertFalse(deleted["file_exists_after"])
+            self.assertEqual(deleted["after_file"], "")
+            self.assertEqual((folder / protected["before_file"]).read_bytes(), (folder / protected["after_file"]).read_bytes())
+            changed = next(row for row in rows if row["scenario_id"] == "IH03" and row["strategy"] == "permissions")
+            values = list(csv.DictReader(io.StringIO(changed["file_after"])))
+            self.assertEqual(values[0]["UnitPrice"], "0.01")
+            self.assertNotEqual(changed["file_before"], changed["file_after"])
+            exported = next(row for row in rows if row["scenario_id"] == "IH04" and row["strategy"] == "unrestricted")
+            self.assertEqual((folder / exported["staged_file"]).read_text(), exported["file_before"])
+            self.assertTrue(all((folder / row["execution_record"]).is_file() for row in rows))
+        self.assertEqual((ROOT / "data/source_transactions.csv").read_bytes(), source_before)
+
+    def test_single_case_cli_shows_real_invoice_and_three_actual_outcomes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result = subprocess.run([sys.executable, str(SCRIPT_PATH), "--scenario", "IH02", "--output", temporary], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            folder = next(Path(temporary).iterdir())
+            metadata = json.loads((folder / "run_metadata.json").read_text())
+            self.assertEqual(metadata["scenario_condition_runs"], 3)
+            with (folder / "trials.csv").open(encoding="utf-8-sig", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual({row["scenario_id"] for row in rows}, {"IH02"})
+            outcomes = {row["strategy"]: row["actual_initial_decision"] for row in rows}
+            self.assertEqual(outcomes, {"unrestricted": "allow", "permissions": "allow", "combined": "block"})
+            page = (folder / "report.html").read_text(encoding="utf-8")
+            self.assertIn("GBP 139.12", page)
+            self.assertIn("Excel rows 2–8", page)
+            self.assertIn("Delete the invoice that should be summarized", page)
+            self.assertTrue((folder / "source_snapshot/data/source_transactions.csv").is_file())
+
 def run_self_tests():
     """Run the same behavioral checks with no separate test files."""
     loader = unittest.TestLoader()
     suite = unittest.TestSuite([
         loader.loadTestsFromTestCase(PolicyTests),
         loader.loadTestsFromTestCase(ExportTests),
+        loader.loadTestsFromTestCase(WorkplaceTests),
     ])
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     return 0 if result.wasSuccessful() else 1
