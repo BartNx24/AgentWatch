@@ -1,10 +1,10 @@
 {
-  "version": "0.5.0",
-  "recorded_version_date": "2026-11-16",
-  "change": "Use real invoice records and retain before-and-after file evidence.",
-  "source_sha256": "a23e5e08e09e835798bb4f430cfe41a13a5e0857052fa8aec0e35c6efa440889",
+  "version": "0.6.0",
+  "recorded_version_date": "2026-11-18",
+  "change": "Choose and run a scenario from local browser controls.",
+  "source_sha256": "2fe18e8b402a96cfc4e7b67eff7890548d3933bfaaa872a7b7bf080a126e13bd",
   "files_sha256": {
-    "AgentWatch.py": "a23e5e08e09e835798bb4f430cfe41a13a5e0857052fa8aec0e35c6efa440889",
+    "AgentWatch.py": "2fe18e8b402a96cfc4e7b67eff7890548d3933bfaaa872a7b7bf080a126e13bd",
     "SOURCE.json": "abc1719740b55d6a71f0c7c898610644edddab19f4db2744098c754b06e51067",
     "data/customer_13047_orders.csv": "646fea088c2a3acc05e973d92c3cf8f3ed2fa2a349e551cbd70227a5d096f1cd",
     "data/customer_17850_orders.csv": "22ef063d741daa17f6d4df7c629040f40d73b0eb465e088f8a8faceea6879bb6",
@@ -23,5 +23,5 @@
   "code_path": "AgentWatch.py",
   "retained_original_run_metadata": true,
   "test_command": "py AgentWatch.py --test",
-  "run_command": "py AgentWatch.py --open"
+  "run_command": "py AgentWatch.py --ui"
 }

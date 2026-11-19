@@ -1,11 +1,11 @@
-# AgentWatch v0.5.0
+# AgentWatch v0.6.0
 
-Use real invoice records and retain before-and-after file evidence.
+Choose and run a scenario from local browser controls.
 
-Recorded version date: 2026-11-16. Imported into Git on 2026-11-19.
+Recorded version date: 2026-11-18. Imported into Git on 2026-11-19.
 
 ```powershell
-py AgentWatch.py --open
+py AgentWatch.py --ui
 ```
 
 Automated checks:
