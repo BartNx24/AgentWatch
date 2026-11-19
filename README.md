@@ -1,6 +1,6 @@
-# AgentWatch v0.4.0
+# AgentWatch v0.4.1
 
-Add a scenario suite using published UCI Wine measurements.
+Simplify the results into a plain-language comparison.
 
 Recorded version date: 2026-11-10. Imported into Git on 2026-11-19.
 

@@ -1,4 +1,4 @@
-"""AgentWatch 0.4.0 - single-file scenario simulation
+"""AgentWatch 0.4.1 - single-file scenario simulation
 
 SAVE AND RUN
     Save this file as AgentWatch.py in a folder you can write to.
@@ -59,6 +59,8 @@ VERSION RECORD
             display the approval mode prominently, and verify refusal exports.
     0.4.0 - 10 November 2026: identify the dataset in run reports and include
             an optional suite based on published lab measurements.
+    0.4.1 - 10 November 2026: show the comparison in plain language and put
+            run details and downloads in one expandable section.
     Created with ChatGPT assistance. Individual student contributions remain
     to be recorded against the work they actually complete and validate.
 """
@@ -461,7 +463,7 @@ SCENARIO_SUITE = {'suite_version': '1.0',
 
 # region Policy decisions and mock execution
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 
 
 STRATEGIES = ("unrestricted", "permissions", "combined")
@@ -788,91 +790,130 @@ def snapshot_sources(destination, suite_path=None):
 
 
 def write_report(path, metadata, rows, summary):
-    esc = lambda value: html.escape(str(value), quote=True)
-    def percent(value):
-        return "N/A" if value is None else f"{value:.1f}%"
-
     css = """
-    :root {color-scheme:light; font-family:Segoe UI,Arial,sans-serif; color:#162332; background:#f0f3f6}
-    body {margin:0} main {max-width:1200px; margin:auto; padding:30px 24px 64px}
-    h1 {font-size:30px; margin:6px 0 12px} h2 {margin:30px 0 12px; font-size:22px}
-    .run-mode {font-size:21px;font-weight:700;background:#fff0ca;border:1px solid #d8b65d;border-radius:6px;padding:14px 18px;margin:16px 0}
-    p {line-height:1.55; max-width:1000px} .meta {font-size:13px; color:#4d6173}
-    .metrics {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:22px 0}
-    .metric {background:white;border:1px solid #d7dfe7;border-radius:8px;padding:18px}
-    .metric strong {display:block;font-size:28px;margin-bottom:5px} .metric span {font-size:14px;color:#4d6173}
-    .table-wrap {overflow-x:auto;background:white;border:1px solid #d7dfe7;border-radius:6px}
-    table {border-collapse:collapse;width:100%;font-size:13px} td,th {text-align:left;padding:11px 12px;border-bottom:1px solid #e4e9ef;vertical-align:top}
-    th {background:#e6edf3;line-height:1.4} tr:nth-child(even) {background:#f8fafc}
-    .allow {color:#086245;font-weight:600} .block {color:#9d2732;font-weight:600}
-    .approval_required {color:#795000;font-weight:600} .small {font-size:12px;color:#4d6173}
-    code {font-family:Consolas,monospace;font-size:12px;overflow-wrap:anywhere}
-    a {color:#125da0} details {margin:7px 0} summary {cursor:pointer} .links {display:flex;flex-wrap:wrap;gap:18px}
-    @media(max-width:650px) {.metrics{grid-template-columns:1fr} main{padding:20px 14px} h1{font-size:25px}}
-    @media print {body{background:white}main{padding:0}.table-wrap{overflow:visible} th{background:#eee}}
+    :root {color-scheme:light; font-family:system-ui,"Segoe UI",sans-serif; color:#192d2b; background:#f4f7f6}
+    * {box-sizing:border-box}
+    body {margin:0; line-height:1.5}
+    main {max-width:1090px; margin:auto; padding:52px 24px 64px}
+    h1,h2,h3,p,dl,dd {margin:0}
+    .report-header {display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:38px}
+    .eyebrow {font-size:.82rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#386659}
+    h1 {font-size:clamp(2rem,5vw,3.1rem); line-height:1.12; letter-spacing:-.035em; margin:8px 0 12px}
+    .intro,.description,.note,.run-facts dt {color:#475d58}
+    .approval-setting {flex-shrink:0; background:#e0f1e8; color:#164b36; padding:12px 18px; border-radius:12px}
+    .approval-setting.refused {background:#fff1d7; color:#62430e}
+    .approval-setting span {display:block; font-size:.8rem}
+    .approval-setting strong {display:block; font-size:1.05rem}
+    h2 {font-size:1.25rem; margin-bottom:14px}
+    .comparison {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px}
+    .strategy {display:flex; flex-direction:column; padding:22px; background:#fff; border:1px solid #d6e2dd; border-radius:16px}
+    .strategy.full {background:#e9f5ee; border-color:#98bfae}
+    h3 {font-size:1.16rem; line-height:1.3; margin-bottom:7px}
+    .description {font-size:.94rem; min-height:4.5em}
+    .outcomes {margin:16px 0}
+    .outcome {display:flex; flex-direction:column; padding:12px 0; border-top:1px solid #ceded6}
+    .outcome dt {color:#314b44; font-size:.9rem}
+    .outcome dd {order:-1; font-size:2rem; line-height:1.2; font-weight:750; font-variant-numeric:tabular-nums}
+    .outcome dd span {font-size:1.05rem; font-weight:550; color:#475d58}
+    .approval-count {margin-top:auto; font-size:.88rem; font-weight:600; color:#386054}
+    .note {font-size:.9rem; margin-top:15px; max-width:75ch}
+    .details {margin-top:24px; background:#fff; border:1px solid #d6e2dd; border-radius:12px}
+    summary {cursor:pointer; padding:14px 18px; font-weight:650; border-radius:12px}
+    .details-content {padding:0 18px 18px}
+    .run-facts {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 20px; margin:8px 0 16px}
+    .run-facts dt {font-size:.85rem}
+    .run-facts dd {overflow-wrap:anywhere}
+    .links {display:flex; flex-wrap:wrap; gap:8px 18px; padding:0; margin:0; list-style:none}
+    a {color:#125d49; text-underline-offset:3px}
+    :focus-visible {outline:3px solid #277d63; outline-offset:3px}
+    @media (max-width:800px) {
+        main {padding:30px 18px 42px}
+        .report-header {align-items:start; flex-direction:column; gap:14px; margin-bottom:25px}
+        .comparison {grid-template-columns:1fr}
+        .description {min-height:0}
+    }
+    @media (max-width:520px) {.run-facts {grid-template-columns:1fr}}
+    @media print {body {background:white} main {padding:0} .strategy {break-inside:avoid}}
     """
-    source_link = ""
+    labels = {
+        "unrestricted": ("No checks", "Runs every request in the test."),
+        "permissions": ("File permissions only", "Checks the account’s permission to use the file."),
+        "combined": ("Full safeguards", "Checks permissions and the assigned task. Asks for approval when needed."),
+    }
+    refused = metadata["approval_response"] == "deny"
+    approval_label = "Approvals refused" if refused else "Approvals granted"
+    approval_class = "approval-setting refused" if refused else "approval-setting"
+    dataset_name = html.escape(metadata.get("scenario_input", "Embedded fictional suite"))
+    run_id = html.escape(metadata["run_id"])
+    matches = sum(row["decision_matches_expectation"] for row in rows)
+    pieces = [f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentWatch · {approval_label}</title>
+<style>{css}</style>
+</head>
+<body><main>
+<header class="report-header">
+    <div>
+        <p class="eyebrow">AgentWatch · Simulation</p>
+        <h1>File protection results</h1>
+        <p class="intro">Each setting was tested with the same {metadata['scenario_count']} cases.</p>
+    </div>
+    <p class="{approval_class}"><span>Test setting</span><strong>{approval_label}</strong></p>
+</header>
+<section aria-labelledby="results-heading">
+    <h2 id="results-heading">Results by setting</h2>
+    <div class="comparison">"""]
+    for result in summary:
+        strategy = result["strategy"]
+        label, description = labels[strategy]
+        card_class = "strategy full" if strategy == "combined" else "strategy"
+        unsafe = result["unauthorized_attempts"] + result["inappropriate_authorized_attempts"]
+        blocked = result["unauthorized_actions_blocked"] + result["inappropriate_actions_blocked"]
+        approvals = result["approval_requests"]
+        approval_count = "No approval requests"
+        if approvals:
+            noun = "request" if approvals == 1 else "requests"
+            approval_count = f"{approvals} approval {noun} · {result['simulated_approval_denials']} refused"
+        pieces.append(f"""        <article class="{card_class}">
+            <h3>{label}</h3>
+            <p class="description">{description}</p>
+            <dl class="outcomes">
+                <div class="outcome">
+                    <dt>Unsafe requests blocked</dt><dd>{blocked} <span>of {unsafe}</span></dd>
+                </div>
+                <div class="outcome">
+                    <dt>Valid tasks completed</dt><dd>{result['legitimate_tasks_completed']} <span>of {result['legitimate_attempts']}</span></dd>
+                </div>
+            </dl>
+            <p class="approval-count">{approval_count}</p>
+        </article>""")
+    pieces.append(f"""    </div>
+    <p class="note">An unsafe request lacked file permission or went beyond the assigned task. Valid tasks that require approval can finish after approval is granted.</p>
+</section>
+<details class="details">
+    <summary>Test details and downloads</summary>
+    <div class="details-content">
+        <dl class="run-facts">
+            <div><dt>Data used</dt><dd>{dataset_name}</dd></div>
+            <div><dt>Initial decisions matching expectations</dt><dd>{matches}/{len(rows)}</dd></div>
+            <div><dt>AgentWatch version</dt><dd>{VERSION}</dd></div>
+            <div><dt>Run ID</dt><dd>{run_id}</dd></div>
+        </dl>
+        <ul class="links">
+            <li><a href="trials.csv">Individual test results</a></li>
+            <li><a href="summary.csv">Comparison totals and timing</a></li>
+            <li><a href="run_metadata.json">Run settings</a></li>
+            <li><a href="results.sqlite">Saved database</a></li>""")
     if "external_scenarios.json" in metadata.get("source_snapshot_sha256", {}):
-        source_link = " &middot; <a href='source_snapshot/external_scenarios.json'>Dataset and source details</a>"
-    pieces = ["<!doctype html><html lang='en'><head><meta charset='utf-8'>",
-              "<meta name='viewport' content='width=device-width, initial-scale=1'>",
-              f"<title>AgentWatch {esc(metadata['approval_response'].upper())} | {esc(metadata['run_id'])}</title><style>{css}</style></head><body><main>",
-              "<div class='meta'>AGENTWATCH / CONTROLLED SCENARIO SIMULATION</div>",
-              "<h1>Authorization strategy comparison</h1>",
-              f"<p class='run-mode'>Approval response: {esc(metadata['approval_response'].upper())}</p>",
-              f"<p class='meta'>Version {esc(VERSION)} &middot; Run <code>{esc(metadata['run_id'])}</code><br>",
-              f"Started {esc(metadata['started_at_utc'])} &middot; {metadata['rounds']} round(s) &middot; Seed {metadata['random_seed']}</p>",
-              f"<p class='meta'>Dataset <code>{esc(metadata.get('scenario_input', 'Embedded fictional suite'))}</code>{source_link}</p>",
-              "<p>This run applies predefined action requests to in-memory copies of the data. Task scopes, access rules and approvals are configured for the experiment. "
-              "The outputs test the declared rules in these scenarios; no live AI agent or real human response time is evaluated.</p>",
-              "<div class='metrics'>",
-              f"<div class='metric'><strong>{metadata['scenario_count']}</strong><span>scenarios per round</span></div>",
-              f"<div class='metric'><strong>{len(rows)}</strong><span>scenario-condition runs</span></div>",
-              f"<div class='metric'><strong>{sum(r['decision_matches_expectation'] for r in rows)}/{len(rows)}</strong><span>initial decisions matching expectations before approval</span></div></div>",
-              "<p class='small'>The decision-match count evaluates the initial authorization rules. Refusing approval changes executed actions and legitimate task completion; this initial-decision count can still be 90/90.</p>",
-              "<h2>Security and task completion</h2><div class='table-wrap'><table><thead><tr>",
-              "<th>Strategy</th><th>Attempts</th><th>Unauthorized blocked</th><th>Inappropriate blocked</th>"
-              "<th>False positives</th><th>Legitimate tasks completed</th><th>Approval requests</th><th>Approval frequency</th></tr></thead><tbody>"]
-    for s in summary:
-        pieces.append("<tr>" + "".join(f"<td>{esc(x)}</td>" for x in [
-            s["strategy"], s["attempts"], percent(s["unauthorized_block_rate_pct"]),
-            percent(s["inappropriate_block_rate_pct"]), percent(s["false_positive_rate_pct"]),
-            f"{s['legitimate_tasks_completed']}/{s['legitimate_attempts']}", s["approval_requests"], percent(s["approval_frequency_pct"]),
-        ]) + "</tr>")
-    pieces.append("</tbody></table></div><p class='small'>Unauthorized blocking uses technically unauthorized attempts as its denominator. "
-                  "Inappropriate blocking uses technically authorized but task-inappropriate attempts. False positives are initial policy blocks "
-                  "of technically authorized, task-appropriate requests. Scripted approval refusals are reported separately and reduce task completion.</p>")
-    pieces.append("<h2>Measured processing and assumed approval delay</h2>"
-                  f"<p>Scripted approval response: <strong>{esc(metadata['approval_response'])}</strong>. "
-                  f"Assumed delay: <strong>{metadata['assumed_approval_wait_seconds']:g} seconds per request</strong>. "
-                  "The program does not wait for this period. Estimated totals add this assumption to measured processing.</p>"
-                  "<div class='table-wrap'><table><thead><tr><th>Strategy</th><th>Mean measured processing ms</th>"
-                  "<th>Mean simulated wait seconds</th><th>Mean estimated total seconds</th><th>Scripted approval refusals</th></tr></thead><tbody>")
-    for s in summary:
-        pieces.append("<tr>" + "".join(f"<td>{esc(x)}</td>" for x in [s["strategy"],
-            f"{s['mean_measured_processing_ms']:.5f}", f"{s['mean_simulated_wait_seconds']:.3f}",
-            f"{s['mean_estimated_total_seconds']:.5f}", s["simulated_approval_denials"]]) + "</tr>")
-    pieces.append("</tbody></table></div><h2>Individual trial records</h2>"
-                  "<p class='small'>Use your browser's Find command to locate a scenario. Expand its identifier to inspect its task, execution outcome and event trace. CSV order retains randomized trial order.</p>"
-                  "<div class='table-wrap'><table><thead><tr><th>Scenario</th><th>Strategy</th><th>Action and risk</th>"
-                  "<th>Expected initial decision</th><th>Actual initial decision</th><th>Approval</th><th>Executed</th><th>Processing ms</th></tr></thead><tbody>")
-    for r in sorted(rows, key=lambda r: (r["round"], STRATEGIES.index(r["strategy"]), r["scenario_id"])):
-        detail = (f"<details><summary>{esc(r['scenario_id'])} / round {r['round']}</summary>"
-                  f"<p>{esc(r['task'])}</p><p>{esc(r['reason'])}</p><p>{esc(r['outcome'])}</p>"
-                  f"<p class='small'>Trial {r['trial_index']}<br>Resource: {esc(r['resource_id'])}<br>"
-                  f"Recipient: {esc(r['recipient'])}<br>Simulated waiting seconds: {r['simulated_approval_wait_seconds']:g}<br>"
-                  f"Trace: {esc(' > '.join(json.loads(r['events'])))}</p></details>")
-        pieces.append(f"<tr><td>{detail}</td><td>{esc(r['strategy'])}</td>"
-                      f"<td>{esc(r['action'])}<br><span class='small'>{esc(r['computed_risk'])} risk</span></td>"
-                      f"<td>{esc(r['expected_initial_decision'])}</td><td class='{esc(r['actual_initial_decision'])}'>{esc(r['actual_initial_decision'])}</td>"
-                      f"<td>{esc(r['approval_status'])}</td><td>{'Yes' if r['executed'] else 'No'}</td>"
-                      f"<td>{r['measured_processing_ms']:.5f}</td></tr>")
-    pieces.append("</tbody></table></div><h2>Retained evidence</h2><p class='links'>"
-                  "<a href='trials.csv'>Trial records CSV</a><a href='summary.csv'>Summary CSV</a>"
-                  "<a href='run_metadata.json'>Run metadata and source hashes</a><a href='results.sqlite'>SQLite database</a></p>"
-                  "<p>The source_snapshot folder retains the code and scenarios used for this run. Preserve this entire run folder when recording development evidence.</p>"
-                  "<p class='small'>Starter code was created with ChatGPT assistance. The optional operator field identifies who entered the run metadata; it does not establish code authorship. "
-                  "The three conditions add permission, context and approval controls in combination; the comparison does not isolate approval's effect from context checking.</p></main></body></html>")
+        pieces.append('            <li><a href="source_snapshot/external_scenarios.json">Dataset and source details</a></li>')
+    pieces.append("""        </ul>
+        <p class="note">The test uses scripted requests and approval responses. The timing estimates include the assumed approval delay.</p>
+    </div>
+</details>
+</main></body></html>""")
     path.write_text("\n".join(pieces), encoding="utf-8")
 
 
@@ -1133,8 +1174,8 @@ class ExportTests(unittest.TestCase):
             self.assertEqual(combined["simulated_approval_denials"], "5")
             self.assertEqual(combined["initial_decisions_matching_expectation"], "30")
             report = (folder / "report.html").read_text(encoding="utf-8")
-            self.assertIn("Approval response: DENY", report)
-            self.assertIn("<title>AgentWatch DENY |", report)
+            self.assertIn("<strong>Approvals refused</strong>", report)
+            self.assertIn("<title>AgentWatch · Approvals refused</title>", report)
             self.assertIn("90/90", report)
 
     def test_report_opener_uses_exact_path_including_spaces(self):
@@ -1160,7 +1201,7 @@ class ExportTests(unittest.TestCase):
             self.assertEqual(len(created), 1)
             latest = created.pop()
             launch.assert_called_once_with(latest / "report.html")
-            self.assertIn("Approval response: DENY", (latest / "report.html").read_text(encoding="utf-8"))
+            self.assertIn("<strong>Approvals refused</strong>", (latest / "report.html").read_text(encoding="utf-8"))
             for folder, contents in earlier_reports.items():
                 self.assertEqual((folder / "report.html").read_bytes(), contents)
 
@@ -1239,8 +1280,8 @@ class ExportTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256((folder / "source_snapshot" / name).read_bytes()).hexdigest(), digest)
             report = (folder / "report.html").read_text()
             self.assertIn("180/180", report)
-            self.assertIn("no live AI agent", report)
-            self.assertIn("simulated", report.lower())
+            self.assertIn("The test uses scripted requests and approval responses.", report)
+            self.assertIn("AgentWatch · Simulation", report)
 
     def test_cli_rejects_nonfinite_delays(self):
         result = subprocess.run([sys.executable, str(SCRIPT_PATH), "--approval-seconds", "nan"], capture_output=True, text=True)
