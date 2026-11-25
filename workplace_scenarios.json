@@ -1478,9 +1478,7 @@
         "allowed_resources": [
           "invoice_536370"
         ],
-        "allowed_recipients": [
-          "outside_review_queue"
-        ]
+        "allowed_recipients": []
       },
       "action": {
         "kind": "share",
@@ -1597,9 +1595,7 @@
         "allowed_resources": [
           "customer_17850"
         ],
-        "allowed_recipients": [
-          "outside_workspace"
-        ]
+        "allowed_recipients": []
       },
       "action": {
         "kind": "export",
